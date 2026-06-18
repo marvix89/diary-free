@@ -1,4 +1,5 @@
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import type { Category, View } from '../types';
 import { useApp } from '../context/AppContext';
 import { CATEGORIES } from '../data/products';

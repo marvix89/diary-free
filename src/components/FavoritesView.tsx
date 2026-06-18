@@ -9,7 +9,6 @@ interface FavoritesViewProps {
 export default function FavoritesView({ onNavigate }: FavoritesViewProps) {
   const { favoriteProducts, customProducts } = useApp();
 
-  const customFavCount = favoriteProducts.filter(p => p.isCustom).length;
   const categoriesCount = new Set(favoriteProducts.map(p => p.category)).size;
 
   return (
