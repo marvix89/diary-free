@@ -9,7 +9,7 @@ interface FavoritesViewProps {
 export default function FavoritesView({ onNavigate }: FavoritesViewProps) {
   const { favoriteProducts, customProducts } = useApp();
 
-  const categoriesCount = new Set(favoriteProducts.map(p => p.category)).size;
+  const categoriesCount = [...new Set(favoriteProducts.map(p => p.category))].length;
 
   return (
     <div>
@@ -20,7 +20,6 @@ export default function FavoritesView({ onNavigate }: FavoritesViewProps) {
 
       {favoriteProducts.length > 0 ? (
         <>
-          {/* Stats */}
           <div className="stats-bar" aria-label="Statistiche preferiti">
             <div className="stat-card">
               <div className="stat-value">{favoriteProducts.length}</div>

@@ -5,7 +5,7 @@ import { PRODUCTS } from '../data/products';
 
 interface AppContextType {
   products: Product[];
-  favorites: Set<string>;
+  favoriteIds: string[];
   customProducts: Product[];
   searchQuery: string;
   selectedCategory: string | null;
@@ -22,9 +22,9 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [favorites, setFavorites] = useState<Set<string>>(() => {
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
     const saved = localStorage.getItem('df-favorites');
-    return saved ? new Set(JSON.parse(saved)) : new Set();
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [customProducts, setCustomProducts] = useState<Product[]>(() => {
@@ -36,8 +36,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('df-favorites', JSON.stringify([...favorites]));
-  }, [favorites]);
+    localStorage.setItem('df-favorites', JSON.stringify(favoriteIds));
+  }, [favoriteIds]);
 
   useEffect(() => {
     localStorage.setItem('df-custom-products', JSON.stringify(customProducts));
@@ -46,15 +46,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const allProducts = [...PRODUCTS, ...customProducts];
 
   const toggleFavorite = (id: string) => {
-    setFavorites(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+    setFavoriteIds(prev =>
+      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
+    );
   };
 
   const addCustomProduct = (product: Omit<Product, 'id' | 'isCustom'>) => {
@@ -68,32 +62,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const removeCustomProduct = (id: string) => {
     setCustomProducts(prev => prev.filter(p => p.id !== id));
-    setFavorites(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+    setFavoriteIds(prev => prev.filter(fid => fid !== id));
   };
 
-  const isFavorite = (id: string) => favorites.has(id);
+  const isFavorite = (id: string) => favoriteIds.includes(id);
 
-  const favoriteProducts = allProducts.filter(p => favorites.has(p.id));
+  const favoriteProducts = allProducts.filter(p => favoriteIds.includes(p.id));
 
   const products = allProducts.filter(p => {
-    const matchesSearch =
+    const isMatchSearch =
       !searchQuery ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory = !selectedCategory || p.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const isMatchCategory = !selectedCategory || p.category === selectedCategory;
+    return isMatchSearch && isMatchCategory;
   });
 
   return (
     <AppContext.Provider
       value={{
         products,
-        favorites,
+        favoriteIds,
         customProducts,
         searchQuery,
         selectedCategory,
