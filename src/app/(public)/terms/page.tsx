@@ -2,7 +2,7 @@ export default function TermsPage() {
   return (
     <>
       <h1>Termini e Condizioni</h1>
-      <p><strong>Ultimo aggiornamento:</strong> [Data odierna]</p>
+      <p><strong>Ultimo aggiornamento:</strong> 19/06/2026</p>
       
       <h2>1. Accettazione dei Termini</h2>
       <p>
@@ -22,7 +22,7 @@ export default function TermsPage() {
 
       <h2>4. Proprietà Intellettuale</h2>
       <p>
-        Tutto il codice sorgente, l'interfaccia, i loghi e il design della piattaforma Dairy Free sono di proprietà esclusiva di <strong>[Tuo Nome/Cognome o Azienda]</strong>, coperti da licenza proprietaria. È severamente vietata la copia, modifica, o distribuzione senza previa autorizzazione esplicita.
+        Tutto il codice sorgente, l'interfaccia, i loghi e il design della piattaforma Dairy Free sono di proprietà esclusiva di <strong>Balbi Martino</strong>, coperti da licenza proprietaria. È severamente vietata la copia, modifica, o distribuzione senza previa autorizzazione esplicita.
       </p>
 
       <h2>5. Modifiche al Servizio</h2>
@@ -32,7 +32,7 @@ export default function TermsPage() {
 
       <h2>6. Legge Applicabile</h2>
       <p>
-        I presenti Termini sono regolati dalla legge [Italiana / del tuo Stato di residenza]. Per ogni controversia sarà competente il foro di [Città].
+        I presenti Termini sono regolati dalla legge Italiana. Per ogni controversia sarà competente il foro di Avellino.
       </p>
     </>
   );

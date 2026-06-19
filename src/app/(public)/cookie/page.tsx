@@ -2,7 +2,7 @@ export default function CookiePolicyPage() {
   return (
     <>
       <h1>Cookie Policy</h1>
-      <p><strong>Ultimo aggiornamento:</strong> [Data odierna]</p>
+      <p><strong>Ultimo aggiornamento:</strong> 19/06/2026</p>
       
       <h2>1. Cosa sono i Cookie</h2>
       <p>

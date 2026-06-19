@@ -2,11 +2,11 @@ export default function PrivacyPolicyPage() {
   return (
     <>
       <h1>Privacy Policy</h1>
-      <p><strong>Ultimo aggiornamento:</strong> [Data odierna]</p>
+      <p><strong>Ultimo aggiornamento:</strong> 19/06/2026</p>
       
       <h2>1. Titolare del Trattamento dei Dati</h2>
       <p>
-        Il titolare del trattamento dei dati è <strong>[Tuo Nome/Cognome o Azienda]</strong>, contattabile all'indirizzo email: <strong>[Tua Email di contatto]</strong>.
+        Il titolare del trattamento dei dati è <strong>Balbi Martino</strong>, contattabile all'indirizzo email: <strong>marvix89@gmail.com</strong>.
       </p>
 
       <h2>2. Dati Raccolti</h2>
