@@ -17,6 +17,8 @@ interface AppContextType {
   favoriteProducts: Product[];
   allProducts: Product[];
   removeCustomProduct: (id: string) => void;
+  isDark: boolean;
+  toggleTheme: () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -34,6 +36,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Theme: default light, persist in localStorage
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const saved = localStorage.getItem('df-theme');
+    return saved === 'dark';
+  });
+
+  // Apply / remove 'dark' class on <html>
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('df-theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark(prev => !prev);
 
   useEffect(() => {
     localStorage.setItem('df-favorites', JSON.stringify(favoriteIds));
@@ -95,6 +115,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         favoriteProducts,
         allProducts,
         removeCustomProduct,
+        isDark,
+        toggleTheme,
       }}
     >
       {children}

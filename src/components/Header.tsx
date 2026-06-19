@@ -7,7 +7,7 @@ interface HeaderProps {
 }
 
 export default function Header({ currentView, onViewChange }: HeaderProps) {
-  const { favoriteProducts } = useApp();
+  const { favoriteProducts, isDark, toggleTheme } = useApp();
 
   return (
     <header className="header">
@@ -49,6 +49,16 @@ export default function Header({ currentView, onViewChange }: HeaderProps) {
           >
             <span className="nav-icon">➕</span>
             <span className="nav-label">Aggiungi</span>
+          </button>
+
+          <button
+            id="theme-toggle"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={isDark ? 'Passa al tema chiaro' : 'Passa al tema scuro'}
+            title={isDark ? 'Tema chiaro' : 'Tema scuro'}
+          >
+            {isDark ? '☀️' : '🌙'}
           </button>
         </nav>
       </div>
