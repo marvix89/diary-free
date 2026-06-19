@@ -28,7 +28,19 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          {children}
+          <footer className="global-footer">
+            <div className="footer-links">
+              <a href="/privacy">Privacy Policy</a>
+              <a href="/cookie">Cookie Policy</a>
+              <a href="/terms">Termini e Condizioni</a>
+            </div>
+            <div className="footer-copyright">
+              &copy; {new Date().getFullYear()} Dairy Free. Tutti i diritti riservati.
+            </div>
+          </footer>
+        </SessionProvider>
       </body>
     </html>
   );
