@@ -1,11 +1,10 @@
 export type Category =
-  | 'latticini-alternativi'
-  | 'frutta-verdura'
-  | 'cereali-legumi'
-  | 'carne-pesce'
-  | 'bevande'
-  | 'snack-dolci'
-  | 'condimenti'
+  | 'alternative-vegetali'
+  | 'formaggi'
+  | 'yogurt-dessert'
+  | 'dolci-biscotti'
+  | 'gelati'
+  | 'piatti-pronti'
   | 'personalizzato';
 
 export interface Product {
