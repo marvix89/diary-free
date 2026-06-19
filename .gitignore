@@ -10,7 +10,6 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-*.local
 
 # Editor directories and files
 .vscode/*
@@ -23,4 +22,13 @@ dist-ssr
 *.sln
 *.sw?
 
+# Vercel
 .vercel
+
+# Next.js
+.next
+out
+
+# Variabili d'ambiente – MAI committare
+.env.local
+.env*.local

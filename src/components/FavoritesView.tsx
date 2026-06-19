@@ -1,15 +1,24 @@
-import { useApp } from '../context/AppContext';
-import type { View } from '../types';
+'use client';
+
+import { useApp } from '@/context/AppContext';
+import Link from 'next/link';
 import ProductCard from './ProductCard';
 
-interface FavoritesViewProps {
-  onNavigate: (v: View) => void;
-}
+export default function FavoritesView() {
+  const { favoriteProducts, customProducts, isLoading } = useApp();
 
-export default function FavoritesView({ onNavigate }: FavoritesViewProps) {
-  const { favoriteProducts, customProducts } = useApp();
+  const categoriesCount = [
+    ...new Set(favoriteProducts.map((p) => p.category)),
+  ].length;
 
-  const categoriesCount = [...new Set(favoriteProducts.map(p => p.category))].length;
+  if (isLoading) {
+    return (
+      <div className="loading-state">
+        <div className="loading-spinner" />
+        <p>Caricamento preferiti…</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -36,7 +45,7 @@ export default function FavoritesView({ onNavigate }: FavoritesViewProps) {
           </div>
 
           <div className="products-grid" role="list" aria-label="Prodotti preferiti">
-            {favoriteProducts.map(p => (
+            {favoriteProducts.map((p) => (
               <ProductCard
                 key={p.id}
                 product={p}
@@ -50,11 +59,11 @@ export default function FavoritesView({ onNavigate }: FavoritesViewProps) {
           <span className="empty-icon">💔</span>
           <p className="empty-title">Nessun preferito ancora</p>
           <p className="empty-desc">
-            Sfoglia il catalogo e premi ❤️ sui prodotti che vuoi salvare nella tua lista personale.
+            Sfoglia il catalogo e premi ❤️ sui prodotti che vuoi salvare.
           </p>
-          <button className="empty-cta" onClick={() => onNavigate('catalog')}>
+          <Link href="/" className="empty-cta">
             Vai al Catalogo
-          </button>
+          </Link>
         </div>
       )}
     </div>

@@ -1,22 +1,31 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+'use client';
+
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from 'react';
 import type { ReactNode } from 'react';
-import type { Product } from '../types';
-import { PRODUCTS } from '../data/products';
+import type { Product } from '@/types';
 
 interface AppContextType {
   products: Product[];
+  allProducts: Product[];
   favoriteIds: string[];
   customProducts: Product[];
   searchQuery: string;
   selectedCategory: string | null;
-  toggleFavorite: (id: string) => void;
-  addCustomProduct: (product: Omit<Product, 'id' | 'isCustom'>) => void;
+  isLoading: boolean;
+  error: string | null;
+  toggleFavorite: (id: string) => Promise<void>;
+  addCustomProduct: (product: Omit<Product, 'id' | 'isCustom'>) => Promise<void>;
   setSearchQuery: (q: string) => void;
   setSelectedCategory: (cat: string | null) => void;
   isFavorite: (id: string) => boolean;
   favoriteProducts: Product[];
-  allProducts: Product[];
-  removeCustomProduct: (id: string) => void;
+  removeCustomProduct: (id: string) => Promise<void>;
   isDark: boolean;
   toggleTheme: () => void;
 }
@@ -24,96 +33,154 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('df-favorites');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [customProducts, setCustomProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('df-custom-products');
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isDark, setIsDark] = useState(false);
 
-  // Theme: default light, persist in localStorage
-  const [isDark, setIsDark] = useState<boolean>(() => {
+  // Inizializza tema dal localStorage
+  useEffect(() => {
     const saved = localStorage.getItem('df-theme');
-    return saved === 'dark';
-  });
+    const dark = saved === 'dark';
+    setIsDark(dark);
+    document.documentElement.classList.toggle('dark', dark);
+  }, []);
 
-  // Apply / remove 'dark' class on <html>
+  const toggleTheme = useCallback(() => {
+    setIsDark((prev) => {
+      const next = !prev;
+      document.documentElement.classList.toggle('dark', next);
+      localStorage.setItem('df-theme', next ? 'dark' : 'light');
+      return next;
+    });
+  }, []);
+
+  // Carica prodotti e preferiti dal DB in parallelo
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('df-theme', isDark ? 'dark' : 'light');
-  }, [isDark]);
+    const load = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const [productsRes, favoritesRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/favorites'),
+        ]);
 
-  const toggleTheme = () => setIsDark(prev => !prev);
+        if (!productsRes.ok || !favoritesRes.ok) {
+          throw new Error('Errore nel caricamento dati. Riprova.');
+        }
 
-  useEffect(() => {
-    localStorage.setItem('df-favorites', JSON.stringify(favoriteIds));
-  }, [favoriteIds]);
+        const [products, favorites]: [Product[], string[]] = await Promise.all([
+          productsRes.json(),
+          favoritesRes.json(),
+        ]);
 
-  useEffect(() => {
-    localStorage.setItem('df-custom-products', JSON.stringify(customProducts));
-  }, [customProducts]);
-
-  const allProducts = [...PRODUCTS, ...customProducts];
-
-  const toggleFavorite = (id: string) => {
-    setFavoriteIds(prev =>
-      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
-    );
-  };
-
-  const addCustomProduct = (product: Omit<Product, 'id' | 'isCustom'>) => {
-    const newProduct: Product = {
-      ...product,
-      id: `custom-${Date.now()}`,
-      isCustom: true,
+        setAllProducts(products);
+        setFavoriteIds(favorites);
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setCustomProducts(prev => [...prev, newProduct]);
-  };
 
-  const removeCustomProduct = (id: string) => {
-    setCustomProducts(prev => prev.filter(p => p.id !== id));
-    setFavoriteIds(prev => prev.filter(fid => fid !== id));
-  };
+    load();
+  }, []);
 
-  const isFavorite = (id: string) => favoriteIds.includes(id);
-
-  const favoriteProducts = allProducts.filter(p => favoriteIds.includes(p.id));
-
-  const products = allProducts.filter(p => {
-    const isMatchSearch =
+  // Prodotti filtrati per ricerca + categoria (client-side)
+  const products = allProducts.filter((p) => {
+    const matchSearch =
       !searchQuery ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-    const isMatchCategory = !selectedCategory || p.category === selectedCategory;
-    return isMatchSearch && isMatchCategory;
+      p.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchCategory = !selectedCategory || p.category === selectedCategory;
+    return matchSearch && matchCategory;
   });
+
+  const customProducts = allProducts.filter((p) => p.isCustom);
+  const favoriteProducts = allProducts.filter((p) => favoriteIds.includes(p.id));
+  const isFavorite = (id: string) => favoriteIds.includes(id);
+
+  // Toggle preferito con optimistic update
+  const toggleFavorite = useCallback(
+    async (id: string) => {
+      const wasFav = favoriteIds.includes(id);
+      setFavoriteIds((prev) =>
+        wasFav ? prev.filter((f) => f !== id) : [...prev, id]
+      );
+      try {
+        const method = wasFav ? 'DELETE' : 'POST';
+        const res = await fetch(`/api/favorites/${id}`, { method });
+        if (!res.ok) throw new Error();
+      } catch {
+        // Rollback in caso di errore
+        setFavoriteIds((prev) =>
+          wasFav ? [...prev, id] : prev.filter((f) => f !== id)
+        );
+      }
+    },
+    [favoriteIds]
+  );
+
+  // Aggiunta prodotto custom
+  const addCustomProduct = useCallback(
+    async (product: Omit<Product, 'id' | 'isCustom'>) => {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(product),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? 'Errore durante il salvataggio');
+      }
+
+      const newProduct: Product = await res.json();
+      setAllProducts((prev) => [...prev, newProduct]);
+    },
+    []
+  );
+
+  // Rimozione prodotto custom con optimistic update
+  const removeCustomProduct = useCallback(
+    async (id: string) => {
+      const snapshot = allProducts;
+      setAllProducts((p) => p.filter((pr) => pr.id !== id));
+      setFavoriteIds((f) => f.filter((fid) => fid !== id));
+
+      try {
+        const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+      } catch {
+        // Rollback
+        setAllProducts(snapshot);
+      }
+    },
+    [allProducts]
+  );
 
   return (
     <AppContext.Provider
       value={{
         products,
+        allProducts,
         favoriteIds,
         customProducts,
         searchQuery,
         selectedCategory,
+        isLoading,
+        error,
         toggleFavorite,
         addCustomProduct,
         setSearchQuery,
         setSelectedCategory,
         isFavorite,
         favoriteProducts,
-        allProducts,
         removeCustomProduct,
         isDark,
         toggleTheme,
@@ -126,6 +193,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 export function useApp() {
   const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  if (!ctx) throw new Error('useApp deve essere usato dentro AppProvider');
   return ctx;
 }

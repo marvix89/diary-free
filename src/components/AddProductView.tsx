@@ -1,8 +1,11 @@
+'use client';
+
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import type { Category, View } from '../types';
-import { useApp } from '../context/AppContext';
-import { CATEGORIES } from '../data/products';
+import type { Category } from '@/types';
+import { useApp } from '@/context/AppContext';
+import { CATEGORIES } from '@/data/products';
+import { useRouter } from 'next/navigation';
 
 const EMOJI_OPTIONS = [
   '🥛','🌿','🌾','🥥','🫙','🧀','🧈','🍌','🥑','🫐',
@@ -11,12 +14,9 @@ const EMOJI_OPTIONS = [
   '🥣','🫛','🍋','🍇','🥝','🍓','🥕','🌽','🧅','🧄',
 ];
 
-interface AddProductViewProps {
-  onNavigate: (v: View) => void;
-}
-
-export default function AddProductView({ onNavigate }: AddProductViewProps) {
+export default function AddProductView() {
   const { addCustomProduct } = useApp();
+  const router = useRouter();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -26,6 +26,7 @@ export default function AddProductView({ onNavigate }: AddProductViewProps) {
   const [lactoseLevel, setLactoseLevel] = useState<'none' | 'trace' | 'low'>('none');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const isFormValid = name.trim().length >= 2 && description.trim().length >= 5;
 
@@ -34,35 +35,33 @@ export default function AddProductView({ onNavigate }: AddProductViewProps) {
     if (!isFormValid) return;
 
     setIsSubmitting(true);
+    setSubmitError('');
 
     const tags = tagsInput
       .split(',')
-      .map(t => t.trim())
-      .filter(t => t.length > 0);
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
 
-    addCustomProduct({
-      name: name.trim(),
-      description: description.trim(),
-      category,
-      emoji,
-      tags,
-      lactoseLevel,
-      isLactoseFree: true,
-    });
+    try {
+      await addCustomProduct({
+        name: name.trim(),
+        description: description.trim(),
+        category,
+        emoji,
+        tags,
+        lactoseLevel,
+        isLactoseFree: true,
+      });
 
-    setIsSuccess(true);
-    setIsSubmitting(false);
+      setIsSuccess(true);
 
-    setTimeout(() => {
-      setName('');
-      setDescription('');
-      setCategory('personalizzato');
-      setEmoji('🌟');
-      setTagsInput('');
-      setLactoseLevel('none');
-      setIsSuccess(false);
-      onNavigate('catalog');
-    }, 1500);
+      setTimeout(() => {
+        router.push('/');
+      }, 1500);
+    } catch (err) {
+      setSubmitError((err as Error).message ?? 'Errore durante il salvataggio');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -70,23 +69,30 @@ export default function AddProductView({ onNavigate }: AddProductViewProps) {
       <div className="add-hero">
         <div className="add-hero-icon">➕</div>
         <h1>Aggiungi un Prodotto</h1>
-        <p>Non trovi un prodotto sicuro? Aggiungilo tu alla tua lista personale.</p>
+        <p>Non trovi un prodotto sicuro? Aggiungilo alla tua lista personale.</p>
       </div>
 
       {isSuccess ? (
         <div className="empty-state" role="status" aria-live="polite">
           <span className="empty-icon">✅</span>
           <p className="empty-title">Prodotto aggiunto!</p>
-          <p className="empty-desc">Il tuo prodotto è stato salvato. Redirezione al catalogo…</p>
+          <p className="empty-desc">
+            Il tuo prodotto è stato salvato in modo sicuro. Reindirizzamento al
+            catalogo…
+          </p>
         </div>
       ) : (
-        <form className="add-form" onSubmit={handleSubmit} noValidate aria-label="Modulo aggiunta prodotto">
-
+        <form
+          className="add-form"
+          onSubmit={handleSubmit}
+          noValidate
+          aria-label="Modulo aggiunta prodotto"
+        >
           {/* Emoji picker */}
           <div className="form-group">
             <label className="form-label">Icona Prodotto</label>
             <div className="emoji-picker" role="listbox" aria-label="Scegli un'icona">
-              {EMOJI_OPTIONS.map(e => (
+              {EMOJI_OPTIONS.map((e) => (
                 <button
                   key={e}
                   type="button"
@@ -105,28 +111,32 @@ export default function AddProductView({ onNavigate }: AddProductViewProps) {
           {/* Name & Category */}
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label" htmlFor="product-name">Nome Prodotto *</label>
+              <label className="form-label" htmlFor="product-name">
+                Nome Prodotto *
+              </label>
               <input
                 id="product-name"
                 className="form-input"
                 type="text"
                 placeholder="es. Latte di Riso"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value)}
                 maxLength={60}
                 required
                 aria-required="true"
               />
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="product-category">Categoria</label>
+              <label className="form-label" htmlFor="product-category">
+                Categoria
+              </label>
               <select
                 id="product-category"
                 className="form-select"
                 value={category}
-                onChange={e => setCategory(e.target.value as Category)}
+                onChange={(e) => setCategory(e.target.value as Category)}
               >
-                {CATEGORIES.map(c => (
+                {CATEGORIES.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.emoji} {c.label}
                   </option>
@@ -137,13 +147,15 @@ export default function AddProductView({ onNavigate }: AddProductViewProps) {
 
           {/* Description */}
           <div className="form-group">
-            <label className="form-label" htmlFor="product-description">Descrizione *</label>
+            <label className="form-label" htmlFor="product-description">
+              Descrizione *
+            </label>
             <textarea
               id="product-description"
               className="form-textarea"
-              placeholder="Descrivi brevemente il prodotto e perché è sicuro per intolleranti al lattosio…"
+              placeholder="Descrivi brevemente il prodotto…"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               maxLength={200}
               required
               aria-required="true"
@@ -153,32 +165,44 @@ export default function AddProductView({ onNavigate }: AddProductViewProps) {
 
           {/* Tags */}
           <div className="form-group">
-            <label className="form-label" htmlFor="product-tags">Tag (separati da virgola)</label>
+            <label className="form-label" htmlFor="product-tags">
+              Tag (separati da virgola)
+            </label>
             <input
               id="product-tags"
               className="form-input"
               type="text"
               placeholder="es. vegan, proteico, senza glutine"
               value={tagsInput}
-              onChange={e => setTagsInput(e.target.value)}
+              onChange={(e) => setTagsInput(e.target.value)}
             />
-            <span className="form-hint">Aiutano nella ricerca per parola chiave</span>
+            <span className="form-hint">Aiutano nella ricerca</span>
           </div>
 
           {/* Lactose Level */}
           <div className="form-group">
-            <label className="form-label" htmlFor="lactose-level">Livello di Lattosio</label>
+            <label className="form-label" htmlFor="lactose-level">
+              Livello di Lattosio
+            </label>
             <select
               id="lactose-level"
               className="form-select"
               value={lactoseLevel}
-              onChange={e => setLactoseLevel(e.target.value as 'none' | 'trace' | 'low')}
+              onChange={(e) =>
+                setLactoseLevel(e.target.value as 'none' | 'trace' | 'low')
+              }
             >
               <option value="none">✓ 0% – Completamente privo</option>
               <option value="trace">⚠ Tracce – Quantità minime</option>
               <option value="low">~ Basso – Generalmente tollerato</option>
             </select>
           </div>
+
+          {submitError && (
+            <div className="auth-error" role="alert">
+              ⚠️ {submitError}
+            </div>
+          )}
 
           <button
             id="submit-product"

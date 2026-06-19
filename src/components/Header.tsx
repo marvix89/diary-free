@@ -1,13 +1,17 @@
-import type { View } from '../types';
-import { useApp } from '../context/AppContext';
+'use client';
 
-interface HeaderProps {
-  currentView: View;
-  onViewChange: (v: View) => void;
-}
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { signOut, useSession } from 'next-auth/react';
+import { useApp } from '@/context/AppContext';
 
-export default function Header({ currentView, onViewChange }: HeaderProps) {
+export default function Header() {
+  const { data: session } = useSession();
   const { favoriteProducts, isDark, toggleTheme } = useApp();
+  const pathname = usePathname();
+
+  const isActive = (path: string) =>
+    path === '/' ? pathname === '/' : pathname.startsWith(path);
 
   return (
     <header className="header">
@@ -19,37 +23,37 @@ export default function Header({ currentView, onViewChange }: HeaderProps) {
         </div>
 
         <nav className="top-nav" aria-label="Navigazione principale">
-          <button
+          <Link
+            href="/"
             id="nav-catalog"
-            className={`nav-btn ${currentView === 'catalog' ? 'active' : ''}`}
-            onClick={() => onViewChange('catalog')}
+            className={`nav-btn ${isActive('/') ? 'active' : ''}`}
           >
             <span className="nav-icon">🔍</span>
             <span className="nav-label">Catalogo</span>
-          </button>
+          </Link>
 
           <div className="nav-btn-wrap">
-            <button
+            <Link
+              href="/favorites"
               id="nav-favorites"
-              className={`nav-btn ${currentView === 'favorites' ? 'active' : ''}`}
-              onClick={() => onViewChange('favorites')}
+              className={`nav-btn ${isActive('/favorites') ? 'active' : ''}`}
             >
               <span className="nav-icon">❤️</span>
               <span className="nav-label">Preferiti</span>
-            </button>
+            </Link>
             {favoriteProducts.length > 0 && (
               <span className="nav-badge">{favoriteProducts.length}</span>
             )}
           </div>
 
-          <button
+          <Link
+            href="/add"
             id="nav-add"
-            className={`nav-btn ${currentView === 'add' ? 'active' : ''}`}
-            onClick={() => onViewChange('add')}
+            className={`nav-btn ${isActive('/add') ? 'active' : ''}`}
           >
             <span className="nav-icon">➕</span>
             <span className="nav-label">Aggiungi</span>
-          </button>
+          </Link>
 
           <button
             id="theme-toggle"
@@ -60,6 +64,22 @@ export default function Header({ currentView, onViewChange }: HeaderProps) {
           >
             {isDark ? '☀️' : '🌙'}
           </button>
+
+          {session?.user && (
+            <div className="user-menu">
+              <span className="user-avatar" title={session.user.email ?? ''}>
+                {(session.user.email ?? 'U')[0].toUpperCase()}
+              </span>
+              <button
+                id="logout-btn"
+                className="logout-btn"
+                onClick={() => signOut({ callbackUrl: '/login' })}
+                title="Esci dall'account"
+              >
+                Esci
+              </button>
+            </div>
+          )}
         </nav>
       </div>
     </header>

@@ -1,5 +1,7 @@
-import { useApp } from '../context/AppContext';
-import { CATEGORIES } from '../data/products';
+'use client';
+
+import { useApp } from '@/context/AppContext';
+import { CATEGORIES } from '@/data/products';
 import ProductCard from './ProductCard';
 
 export default function CatalogView() {
@@ -8,9 +10,33 @@ export default function CatalogView() {
     allProducts,
     searchQuery,
     selectedCategory,
+    isLoading,
+    error,
     setSearchQuery,
     setSelectedCategory,
   } = useApp();
+
+  if (isLoading) {
+    return (
+      <div className="loading-state">
+        <div className="loading-spinner" />
+        <p>Caricamento catalogo…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="empty-state" role="alert">
+        <span className="empty-icon">⚠️</span>
+        <p className="empty-title">Errore di caricamento</p>
+        <p className="empty-desc">{error}</p>
+        <button className="empty-cta" onClick={() => window.location.reload()}>
+          Riprova
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -24,7 +50,7 @@ export default function CatalogView() {
             type="search"
             placeholder="Cerca prodotti, ingredienti, tag…"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Cerca prodotti"
           />
           {searchQuery && (
@@ -38,7 +64,11 @@ export default function CatalogView() {
           )}
         </div>
 
-        <div className="category-filters" role="tablist" aria-label="Filtra per categoria">
+        <div
+          className="category-filters"
+          role="tablist"
+          aria-label="Filtra per categoria"
+        >
           <button
             id="filter-all"
             role="tab"
@@ -48,14 +78,16 @@ export default function CatalogView() {
           >
             🌟 Tutti
           </button>
-          {CATEGORIES.map(cat => (
+          {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               id={`filter-${cat.id}`}
               role="tab"
               className={`cat-chip ${selectedCategory === cat.id ? 'active' : ''}`}
               onClick={() =>
-                setSelectedCategory(selectedCategory === cat.id ? null : cat.id)
+                setSelectedCategory(
+                  selectedCategory === cat.id ? null : cat.id
+                )
               }
               aria-selected={selectedCategory === cat.id}
             >
@@ -69,7 +101,8 @@ export default function CatalogView() {
       <div className="section-header">
         <h1 className="section-title">
           {selectedCategory
-            ? CATEGORIES.find(c => c.id === selectedCategory)?.label ?? 'Prodotti'
+            ? CATEGORIES.find((c) => c.id === selectedCategory)?.label ??
+              'Prodotti'
             : 'Catalogo Prodotti'}
         </h1>
         <span className="section-count">
@@ -80,7 +113,7 @@ export default function CatalogView() {
       {/* Grid */}
       {products.length > 0 ? (
         <div className="products-grid" role="list" aria-label="Lista prodotti">
-          {products.map(p => (
+          {products.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
@@ -89,11 +122,14 @@ export default function CatalogView() {
           <span className="empty-icon">🔎</span>
           <p className="empty-title">Nessun prodotto trovato</p>
           <p className="empty-desc">
-            Prova a cambiare la ricerca o i filtri. Se il prodotto non esiste, puoi aggiungerlo tu!
+            Prova a cambiare la ricerca o i filtri.
           </p>
           <button
             className="empty-cta"
-            onClick={() => { setSearchQuery(''); setSelectedCategory(null); }}
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedCategory(null);
+            }}
           >
             Reimposta filtri
           </button>

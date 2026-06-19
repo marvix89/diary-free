@@ -1,17 +1,22 @@
-import type { Product } from '../types';
-import { useApp } from '../context/AppContext';
-import { CATEGORIES } from '../data/products';
+'use client';
+
+import type { Product } from '@/types';
+import { useApp } from '@/context/AppContext';
+import { CATEGORIES } from '@/data/products';
 
 interface ProductCardProps {
   product: Product;
   isShowDeleteButton?: boolean;
 }
 
-export default function ProductCard({ product, isShowDeleteButton = false }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  isShowDeleteButton = false,
+}: ProductCardProps) {
   const { toggleFavorite, isFavorite, removeCustomProduct } = useApp();
   const isFav = isFavorite(product.id);
 
-  const categoryInfo = CATEGORIES.find(c => c.id === product.category);
+  const categoryInfo = CATEGORIES.find((c) => c.id === product.category);
 
   const handleFavoriteClick = () => {
     toggleFavorite(product.id);
@@ -28,7 +33,11 @@ export default function ProductCard({ product, isShowDeleteButton = false }: Pro
       <div className="product-card-header">
         <div
           className="product-emoji-wrap"
-          style={{ background: categoryInfo ? `${categoryInfo.color}18` : undefined }}
+          style={{
+            background: categoryInfo
+              ? `${categoryInfo.color}18`
+              : undefined,
+          }}
         >
           {product.emoji}
         </div>
@@ -48,7 +57,11 @@ export default function ProductCard({ product, isShowDeleteButton = false }: Pro
             className={`fav-btn ${isFav ? 'is-active' : ''}`}
             onClick={handleFavoriteClick}
             title={isFav ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
-            aria-label={isFav ? `Rimuovi ${product.name} dai preferiti` : `Aggiungi ${product.name} ai preferiti`}
+            aria-label={
+              isFav
+                ? `Rimuovi ${product.name} dai preferiti`
+                : `Aggiungi ${product.name} ai preferiti`
+            }
             aria-pressed={isFav}
           >
             {isFav ? '❤️' : '🤍'}
@@ -62,8 +75,10 @@ export default function ProductCard({ product, isShowDeleteButton = false }: Pro
       </div>
 
       <div className="product-tags">
-        {product.tags.map(tag => (
-          <span key={tag} className="product-tag">{tag}</span>
+        {product.tags.map((tag) => (
+          <span key={tag} className="product-tag">
+            {tag}
+          </span>
         ))}
       </div>
 
