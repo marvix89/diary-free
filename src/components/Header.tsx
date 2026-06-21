@@ -1,20 +1,29 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
+import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { signOut, useSession } from 'next-auth/react';
 import { useApp } from '@/context/AppContext';
 import { useState, useRef, useEffect } from 'react';
 
 export default function Header() {
+  const t = useTranslations('Header');
+  const locale = useLocale();
+  const router = useRouter();
+  const pathname = usePathname();
+  
   const { data: session } = useSession();
   const { favoriteProducts, isDark, toggleTheme } = useApp();
-  const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) =>
     path === '/' ? pathname === '/' : pathname.startsWith(path);
+
+  const changeLanguage = (newLocale: string) => {
+    router.replace(pathname, { locale: newLocale });
+    setIsDropdownOpen(false);
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -32,7 +41,7 @@ export default function Header() {
         <div className="header-logo">
           <div className="header-logo-icon">🥛</div>
           <span className="header-logo-text">Dairy Free</span>
-          <span className="header-badge">✓ Senza Lattosio</span>
+          <span className="header-badge">✓ {t('badge')}</span>
         </div>
 
         <nav className="top-nav" aria-label="Navigazione principale">
@@ -42,7 +51,7 @@ export default function Header() {
             className={`nav-btn ${isActive('/') ? 'active' : ''}`}
           >
             <span className="nav-icon">🔍</span>
-            <span className="nav-label">Catalogo</span>
+            <span className="nav-label">{t('catalog')}</span>
           </Link>
 
           <div className="nav-btn-wrap">
@@ -52,7 +61,7 @@ export default function Header() {
               className={`nav-btn ${isActive('/favorites') ? 'active' : ''}`}
             >
               <span className="nav-icon">❤️</span>
-              <span className="nav-label">Preferiti</span>
+              <span className="nav-label">{t('favorites')}</span>
             </Link>
             {favoriteProducts.length > 0 && (
               <span className="nav-badge">{favoriteProducts.length}</span>
@@ -65,8 +74,14 @@ export default function Header() {
             className={`nav-btn ${isActive('/add') ? 'active' : ''}`}
           >
             <span className="nav-icon">➕</span>
-            <span className="nav-label">Aggiungi</span>
+            <span className="nav-label">{t('add')}</span>
           </Link>
+
+          {/* Top level language selector */}
+          <div className="nav-btn" style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}>
+            <span onClick={() => changeLanguage('it')} style={{ opacity: locale === 'it' ? 1 : 0.5 }}>🇮🇹</span>
+            <span onClick={() => changeLanguage('en')} style={{ opacity: locale === 'en' ? 1 : 0.5 }}>🇬🇧</span>
+          </div>
 
           {session?.user && (
             <div className="user-menu" ref={dropdownRef}>
@@ -82,16 +97,24 @@ export default function Header() {
               {isDropdownOpen && (
                 <div className="user-dropdown">
                   <button onClick={() => { toggleTheme(); setIsDropdownOpen(false); }}>
-                    <span>{isDark ? '☀️' : '🌙'}</span> Tema {isDark ? 'chiaro' : 'scuro'}
+                    <span>{isDark ? '☀️' : '🌙'}</span> {isDark ? t('themeLight') : t('themeDark')}
                   </button>
                   <Link href="/profile" onClick={() => setIsDropdownOpen(false)}>
-                    <span>⚙️</span> Gestione account
+                    <span>⚙️</span> {t('account')}
                   </Link>
+                  
+                  {/* Dropdown language selector */}
+                  <div style={{ padding: '8px 16px', display: 'flex', gap: '12px', borderTop: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Lingua / Lang:</span>
+                    <span onClick={() => changeLanguage('it')} style={{ cursor: 'pointer', opacity: locale === 'it' ? 1 : 0.4 }}>🇮🇹</span>
+                    <span onClick={() => changeLanguage('en')} style={{ cursor: 'pointer', opacity: locale === 'en' ? 1 : 0.4 }}>🇬🇧</span>
+                  </div>
+
                   <button
                     className="logout-item"
                     onClick={() => signOut({ callbackUrl: '/login' })}
                   >
-                    <span>👋</span> Logout
+                    <span>👋</span> {t('logout')}
                   </button>
                 </div>
               )}

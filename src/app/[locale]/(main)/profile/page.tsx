@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 export default function ProfilePage() {
   const [name, setName] = useState('');
@@ -19,6 +20,7 @@ export default function ProfilePage() {
   const [passwordMsg, setPasswordMsg] = useState({ text: '', type: '' });
 
   const router = useRouter();
+  const t = useTranslations('Profile');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -54,10 +56,10 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (res.ok) {
-        setProfileMsg({ text: 'Profilo aggiornato con successo.', type: 'success' });
+        setProfileMsg({ text: t('saving'), type: 'success' });
         router.refresh();
       } else {
-        setProfileMsg({ text: data.error || 'Errore nell\'aggiornamento', type: 'error' });
+        setProfileMsg({ text: data.error || 'Errore', type: 'error' });
       }
     } catch (err) {
       setProfileMsg({ text: 'Errore di connessione', type: 'error' });
@@ -72,7 +74,7 @@ export default function ProfilePage() {
     setPasswordMsg({ text: '', type: '' });
 
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ text: 'Le nuove password non coincidono.', type: 'error' });
+      setPasswordMsg({ text: 'Errore password', type: 'error' });
       setIsSavingPassword(false);
       return;
     }
@@ -86,12 +88,12 @@ export default function ProfilePage() {
       const data = await res.json();
 
       if (res.ok) {
-        setPasswordMsg({ text: 'Password aggiornata con successo.', type: 'success' });
+        setPasswordMsg({ text: t('updating'), type: 'success' });
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
-        setPasswordMsg({ text: data.error || 'Errore nell\'aggiornamento della password', type: 'error' });
+        setPasswordMsg({ text: data.error || 'Errore', type: 'error' });
       }
     } catch (err) {
       setPasswordMsg({ text: 'Errore di connessione', type: 'error' });
@@ -104,9 +106,9 @@ export default function ProfilePage() {
     return (
       <div className="catalog-container">
         <header className="catalog-header">
-          <h1>Profilo</h1>
+          <h1>{t('title')}</h1>
         </header>
-        <p>Caricamento...</p>
+        <p>...</p>
       </div>
     );
   }
@@ -114,31 +116,31 @@ export default function ProfilePage() {
   return (
     <div className="catalog-container">
       <header className="catalog-header">
-        <h1>Gestione Profilo</h1>
-        <p>Modifica i tuoi dati personali o cambia la password.</p>
+        <h1>{t('title')}</h1>
+        <p>{t('subtitle')}</p>
       </header>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '600px', margin: '0 auto', padding: '2rem 0' }}>
         
         {/* Profile Section */}
         <section style={{ background: 'var(--card-bg)', padding: '2rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Dati Personali</h2>
+          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>{t('personalData')}</h2>
           
           <form onSubmit={handleProfileSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="name">Nome o Nickname</label>
+              <label className="form-label" htmlFor="name">{t('nameLabel')}</label>
               <input
                 id="name"
                 type="text"
                 className="form-input"
-                placeholder="Il tuo nome"
+                placeholder={t('namePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
             
             <div className="form-group">
-              <label className="form-label" htmlFor="email">Indirizzo Email</label>
+              <label className="form-label" htmlFor="email">{t('emailLabel')}</label>
               <input
                 id="email"
                 type="email"
@@ -157,18 +159,18 @@ export default function ProfilePage() {
             )}
 
             <button type="submit" className="submit-btn" disabled={isSavingProfile}>
-              {isSavingProfile ? 'Salvataggio...' : 'Salva Modifiche'}
+              {isSavingProfile ? t('saving') : t('saveChanges')}
             </button>
           </form>
         </section>
 
         {/* Password Section */}
         <section style={{ background: 'var(--card-bg)', padding: '2rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Cambia Password</h2>
+          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>{t('changePassword')}</h2>
           
           <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="current-password">Password Attuale</label>
+              <label className="form-label" htmlFor="current-password">{t('currentPassword')}</label>
               <input
                 id="current-password"
                 type="password"
@@ -181,12 +183,12 @@ export default function ProfilePage() {
             </div>
             
             <div className="form-group">
-              <label className="form-label" htmlFor="new-password">Nuova Password</label>
+              <label className="form-label" htmlFor="new-password">{t('newPassword')}</label>
               <input
                 id="new-password"
                 type="password"
                 className="form-input"
-                placeholder="•••••••• (min 8 caratteri)"
+                placeholder="••••••••"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
@@ -195,7 +197,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="confirm-password">Conferma Nuova Password</label>
+              <label className="form-label" htmlFor="confirm-password">{t('confirmPassword')}</label>
               <input
                 id="confirm-password"
                 type="password"
@@ -215,7 +217,7 @@ export default function ProfilePage() {
             )}
 
             <button type="submit" className="submit-btn" disabled={isSavingPassword}>
-              {isSavingPassword ? 'Aggiornamento...' : 'Aggiorna Password'}
+              {isSavingPassword ? t('updating') : t('updatePassword')}
             </button>
           </form>
         </section>

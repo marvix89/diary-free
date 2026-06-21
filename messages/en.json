@@ -1,0 +1,42 @@
+{
+  "Header": {
+    "catalog": "Catalog",
+    "favorites": "Favorites",
+    "add": "Add",
+    "themeLight": "Light Theme",
+    "themeDark": "Dark Theme",
+    "account": "Account Settings",
+    "logout": "Logout",
+    "badge": "Lactose Free"
+  },
+  "Login": {
+    "title": "Welcome Back",
+    "subtitle": "Log in to manage your personal catalog.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "••••••••",
+    "forgotPassword": "Forgot password?",
+    "submit": "→ Log in",
+    "loading": "⏳ Logging in…",
+    "noAccount": "Don't have an account?",
+    "register": "Register for free",
+    "error": "Incorrect email or password. Please try again."
+  },
+  "Profile": {
+    "title": "Profile Management",
+    "subtitle": "Update your personal details or change your password.",
+    "personalData": "Personal Details",
+    "nameLabel": "Name or Nickname",
+    "namePlaceholder": "Your name",
+    "emailLabel": "Email Address",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "updatePassword": "Update Password",
+    "updating": "Updating..."
+  }
+}

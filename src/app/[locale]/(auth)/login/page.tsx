@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useRouter, Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const t = useTranslations('Login');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +27,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result?.error) {
-      setError('Email o password non corretti. Riprova.');
+      setError(t('error'));
     } else {
       router.push('/');
       router.refresh();
@@ -41,21 +42,21 @@ export default function LoginPage() {
           <span className="auth-logo-text">Dairy Free</span>
         </div>
 
-        <h1 className="auth-title">Bentornato</h1>
+        <h1 className="auth-title">{t('title')}</h1>
         <p className="auth-subtitle">
-          Accedi per gestire il tuo catalogo personale.
+          {t('subtitle')}
         </p>
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="form-group">
             <label className="form-label" htmlFor="login-email">
-              Email
+              {t('emailLabel')}
             </label>
             <input
               id="login-email"
               type="email"
               className="form-input"
-              placeholder="tu@esempio.it"
+              placeholder={t('emailPlaceholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -66,17 +67,17 @@ export default function LoginPage() {
           <div className="form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <label className="form-label" htmlFor="login-password" style={{ margin: 0 }}>
-                Password
+                {t('passwordLabel')}
               </label>
               <Link href="/forgot-password" style={{ fontSize: '0.875rem', color: 'var(--primary)', textDecoration: 'underline' }}>
-                Password dimenticata?
+                {t('forgotPassword')}
               </Link>
             </div>
             <input
               id="login-password"
               type="password"
               className="form-input"
-              placeholder="••••••••"
+              placeholder={t('passwordPlaceholder')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -96,13 +97,13 @@ export default function LoginPage() {
             className="submit-btn"
             disabled={loading}
           >
-            {loading ? '⏳ Accesso in corso…' : '→ Accedi'}
+            {loading ? t('loading') : t('submit')}
           </button>
         </form>
 
         <p className="auth-footer-link">
-          Non hai un account?{' '}
-          <Link href="/register">Registrati gratuitamente</Link>
+          {t('noAccount')}{' '}
+          <Link href="/register">{t('register')}</Link>
         </p>
       </div>
     </div>

@@ -1,0 +1,42 @@
+{
+  "Header": {
+    "catalog": "Catalogo",
+    "favorites": "Preferiti",
+    "add": "Aggiungi",
+    "themeLight": "Tema Chiaro",
+    "themeDark": "Tema Scuro",
+    "account": "Gestione account",
+    "logout": "Esci",
+    "badge": "Senza Lattosio"
+  },
+  "Login": {
+    "title": "Bentornato",
+    "subtitle": "Accedi per gestire il tuo catalogo personale.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "tu@esempio.it",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "••••••••",
+    "forgotPassword": "Password dimenticata?",
+    "submit": "→ Accedi",
+    "loading": "⏳ Accesso in corso…",
+    "noAccount": "Non hai un account?",
+    "register": "Registrati gratuitamente",
+    "error": "Email o password non corretti. Riprova."
+  },
+  "Profile": {
+    "title": "Gestione Profilo",
+    "subtitle": "Modifica i tuoi dati personali o cambia la password.",
+    "personalData": "Dati Personali",
+    "nameLabel": "Nome o Nickname",
+    "namePlaceholder": "Il tuo nome",
+    "emailLabel": "Indirizzo Email",
+    "saveChanges": "Salva Modifiche",
+    "saving": "Salvataggio...",
+    "changePassword": "Cambia Password",
+    "currentPassword": "Password Attuale",
+    "newPassword": "Nuova Password",
+    "confirmPassword": "Conferma Nuova Password",
+    "updatePassword": "Aggiorna Password",
+    "updating": "Aggiornamento..."
+  }
+}
