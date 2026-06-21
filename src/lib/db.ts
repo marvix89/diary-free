@@ -28,9 +28,14 @@ export async function ensureSchema(): Promise<void> {
       email         TEXT        NOT NULL UNIQUE,
       name_enc      TEXT,
       password_hash TEXT        NOT NULL,
+      reset_token   TEXT,
+      reset_token_expires TIMESTAMPTZ,
       created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS products (

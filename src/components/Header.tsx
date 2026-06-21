@@ -4,14 +4,27 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useApp } from '@/context/AppContext';
+import { useState, useRef, useEffect } from 'react';
 
 export default function Header() {
   const { data: session } = useSession();
   const { favoriteProducts, isDark, toggleTheme } = useApp();
   const pathname = usePathname();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) =>
     path === '/' ? pathname === '/' : pathname.startsWith(path);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <header className="header">
@@ -55,29 +68,33 @@ export default function Header() {
             <span className="nav-label">Aggiungi</span>
           </Link>
 
-          <button
-            id="theme-toggle"
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={isDark ? 'Passa al tema chiaro' : 'Passa al tema scuro'}
-            title={isDark ? 'Tema chiaro' : 'Tema scuro'}
-          >
-            {isDark ? '☀️' : '🌙'}
-          </button>
-
           {session?.user && (
-            <div className="user-menu">
-              <span className="user-avatar" title={session.user.email ?? ''}>
-                {(session.user.email ?? 'U')[0].toUpperCase()}
-              </span>
+            <div className="user-menu" ref={dropdownRef}>
               <button
-                id="logout-btn"
-                className="logout-btn"
-                onClick={() => signOut({ callbackUrl: '/login' })}
-                title="Esci dall'account"
+                className="user-avatar"
+                title={session.user.email ?? ''}
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                style={{ cursor: 'pointer', border: 'none', padding: 0 }}
               >
-                Esci
+                {(session.user.email ?? 'U')[0].toUpperCase()}
               </button>
+              
+              {isDropdownOpen && (
+                <div className="user-dropdown">
+                  <button onClick={() => { toggleTheme(); setIsDropdownOpen(false); }}>
+                    <span>{isDark ? '☀️' : '🌙'}</span> Tema {isDark ? 'chiaro' : 'scuro'}
+                  </button>
+                  <Link href="/profile" onClick={() => setIsDropdownOpen(false)}>
+                    <span>⚙️</span> Gestione account
+                  </Link>
+                  <button
+                    className="logout-item"
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                  >
+                    <span>👋</span> Logout
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </nav>
