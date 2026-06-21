@@ -4,6 +4,7 @@ import type { Product } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { CATEGORIES } from '@/data/products';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 
 interface ProductCardProps {
   product: Product;
@@ -79,9 +80,29 @@ export default function ProductCard({
         </div>
       </div>
 
-      <div>
+      <div className="product-title-group">
         <h3 className="product-name">{product.name}</h3>
-        <p className="product-description">{product.description}</p>
+        {product.enrichment?.brand && (
+          <p className="product-brand">{product.enrichment.brand}</p>
+        )}
+      </div>
+
+      <div className="product-body">
+        {product.enrichment?.imageThumbnailUrl && (
+          <div className="product-image-container">
+            <Image
+              src={product.enrichment.imageThumbnailUrl}
+              alt={product.name}
+              width={90}
+              height={90}
+              className="product-thumbnail-large"
+              unoptimized
+            />
+          </div>
+        )}
+        <div className="product-text">
+          <p className="product-description">{product.description}</p>
+        </div>
       </div>
 
       <div className="product-tags">
@@ -93,9 +114,17 @@ export default function ProductCard({
       </div>
 
       <div className="product-footer">
-        <span className={`lactose-badge ${product.lactoseLevel ?? 'none'}`}>
-          {lactoseLabel()}
-        </span>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className={`lactose-badge ${product.lactoseLevel ?? 'none'}`}>
+            {lactoseLabel()}
+          </span>
+          {product.enrichment?.nutriScore && (
+            <span className={`nutriscore-badge score-${product.enrichment.nutriScore}`}>
+              Nutri-Score {product.enrichment.nutriScore.toUpperCase()}
+            </span>
+          )}
+        </div>
+        
         {product.isCustom && (
           <span className="custom-badge">{t('customBadge')}</span>
         )}

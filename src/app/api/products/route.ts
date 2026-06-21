@@ -30,6 +30,16 @@ export async function GET() {
         p.is_lactose_free,
         p.is_custom,
         p.user_id,
+        p.image_url,
+        p.image_thumbnail_url,
+        p.nutriscore,
+        p.nova_group,
+        p.ecoscore,
+        p.allergens,
+        p.ingredients_text,
+        p.nutriments,
+        p.brand,
+        p.quantity,
         COALESCE(pt.name,        p.name_enc)        AS name_enc,
         COALESCE(pt.description, p.description_enc) AS description_enc
       FROM products p
@@ -39,17 +49,44 @@ export async function GET() {
       ORDER BY p.created_at ASC
     ` as Record<string, unknown>[];
 
-    const products: Product[] = rows.map((row) => ({
-      id: row.id as string,
-      name: safeDecrypt(row.name_enc as string, row.is_custom as boolean),
-      description: safeDecrypt(row.description_enc as string, row.is_custom as boolean),
-      category: row.category as Product['category'],
-      emoji: row.emoji as string,
-      tags: (row.tags as string[]) ?? [],
-      isLactoseFree: row.is_lactose_free as boolean,
-      lactoseLevel: row.lactose_level as 'none' | 'trace' | 'low',
-      isCustom: row.is_custom as boolean,
-    }));
+    const products: Product[] = rows.map((row) => {
+      const p: Product = {
+        id: row.id as string,
+        name: safeDecrypt(row.name_enc as string, row.is_custom as boolean),
+        description: safeDecrypt(row.description_enc as string, row.is_custom as boolean),
+        category: row.category as Product['category'],
+        emoji: row.emoji as string,
+        tags: (row.tags as string[]) ?? [],
+        isLactoseFree: row.is_lactose_free as boolean,
+        lactoseLevel: row.lactose_level as 'none' | 'trace' | 'low',
+        isCustom: row.is_custom as boolean,
+      };
+
+      // Add enrichment if any enrichment field is present
+      if (row.image_thumbnail_url || row.nutriscore || row.brand) {
+        p.enrichment = {
+          imageUrl: row.image_url as string | undefined,
+          imageThumbnailUrl: row.image_thumbnail_url as string | undefined,
+          nutriScore: row.nutriscore as any,
+          novaGroup: row.nova_group as any,
+          ecoScore: row.ecoscore as any,
+          allergens: row.allergens as string[] | undefined,
+          ingredientsText: row.ingredients_text as string | undefined,
+          nutriments: row.nutriments as any,
+          brand: row.brand as string | undefined,
+          quantity: row.quantity as string | undefined,
+        };
+        
+        // Pulizia campi undefined
+        Object.keys(p.enrichment).forEach(key => {
+          if (p.enrichment![key as keyof typeof p.enrichment] === null || p.enrichment![key as keyof typeof p.enrichment] === undefined) {
+             delete p.enrichment![key as keyof typeof p.enrichment];
+          }
+        });
+      }
+
+      return p;
+    });
 
     return Response.json(products);
   } catch (err) {

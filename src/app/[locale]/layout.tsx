@@ -59,6 +59,32 @@ export default async function RootLayout({
                 <a href="/cookie">Cookie Policy</a>
                 <a href="/terms">Termini e Condizioni</a>
               </div>
+              <div className="footer-attribution">
+                Dati e immagini dei prodotti:{' '}
+                <a
+                  href="https://it.openfoodfacts.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open Food Facts
+                </a>{' '}
+                – licenza{' '}
+                <a
+                  href="https://opendatacommons.org/licenses/odbl/1-0/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  ODbL
+                </a>
+                {' '}·{' '}
+                <a
+                  href="https://creativecommons.org/licenses/by-sa/3.0/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  CC BY-SA
+                </a>
+              </div>
               <div className="footer-copyright">
                 &copy; {new Date().getFullYear()} Dairy Free. Tutti i diritti riservati.
               </div>

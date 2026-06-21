@@ -50,9 +50,33 @@ export async function ensureSchema(): Promise<void> {
       is_lactose_free BOOLEAN     NOT NULL DEFAULT true,
       is_custom       BOOLEAN     NOT NULL DEFAULT false,
       user_id         UUID        REFERENCES users(id) ON DELETE CASCADE,
-      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      
+      -- Enrichment columns
+      image_url           TEXT,
+      image_thumbnail_url TEXT,
+      nutriscore          TEXT,
+      nova_group          INT,
+      ecoscore            TEXT,
+      allergens           TEXT[],
+      ingredients_text    TEXT,
+      nutriments          JSONB,
+      brand               TEXT,
+      quantity            TEXT
     )
   `;
+
+  // Add enrichment columns if the table already exists but without these columns
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS image_thumbnail_url TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nutriscore TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nova_group INT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS ecoscore TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS allergens TEXT[]`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS ingredients_text TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nutriments JSONB`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS quantity TEXT`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS favorites (

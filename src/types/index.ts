@@ -1,3 +1,5 @@
+import type { ProductEnrichmentData } from '../lib/product-enrichment';
+
 export type Category =
   | 'alternative-vegetali'
   | 'formaggi'
@@ -17,6 +19,7 @@ export interface Product {
   isCustom?: boolean;
   isLactoseFree: boolean;
   lactoseLevel?: 'none' | 'trace' | 'low';
+  enrichment?: ProductEnrichmentData;
 }
 
 export interface CustomProduct extends Product {
