@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import { useRouter, Link } from '@/i18n/routing';
+import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 function ResetPasswordForm() {
+  const t = useTranslations('ResetPassword');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  
+
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const router = useRouter();
@@ -21,12 +23,12 @@ function ResetPasswordForm() {
     setMessage('');
 
     if (!token) {
-      setError('Token mancante. Richiedi un nuovo link.');
+      setError(t('errorNoToken'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Le password non coincidono.');
+      setError(t('errorPasswordMismatch'));
       return;
     }
 
@@ -40,16 +42,16 @@ function ResetPasswordForm() {
       });
 
       if (res.ok) {
-        setMessage('Password aggiornata con successo! Verrai reindirizzato al login...');
+        setMessage(t('successMessage'));
         setTimeout(() => {
           router.push('/login');
         }, 3000);
       } else {
         const data = await res.json();
-        setError(data.error || 'Si è verificato un errore.');
+        setError(data.error || t('errorNetwork'));
       }
-    } catch (err) {
-      setError('Errore di rete. Riprova.');
+    } catch {
+      setError(t('errorNetwork'));
     } finally {
       setLoading(false);
     }
@@ -59,13 +61,13 @@ function ResetPasswordForm() {
     <form onSubmit={handleSubmit} className="auth-form" noValidate>
       <div className="form-group">
         <label className="form-label" htmlFor="reset-password">
-          Nuova Password
+          {t('newPassword')}
         </label>
         <input
           id="reset-password"
           type="password"
           className="form-input"
-          placeholder="•••••••• (min 8 caratteri)"
+          placeholder="••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -75,7 +77,7 @@ function ResetPasswordForm() {
 
       <div className="form-group">
         <label className="form-label" htmlFor="confirm-password">
-          Conferma Password
+          {t('confirmPassword')}
         </label>
         <input
           id="confirm-password"
@@ -106,13 +108,14 @@ function ResetPasswordForm() {
         className="submit-btn"
         disabled={loading || !!message}
       >
-        {loading ? '⏳ Aggiornamento…' : 'Aggiorna Password'}
+        {loading ? t('loading') : t('submit')}
       </button>
     </form>
   );
 }
 
 export default function ResetPasswordPage() {
+  const t = useTranslations('ResetPassword');
   return (
     <div className="auth-page">
       <div className="auth-card">
@@ -121,17 +124,15 @@ export default function ResetPasswordPage() {
           <span className="auth-logo-text">Dairy Free</span>
         </div>
 
-        <h1 className="auth-title">Imposta Nuova Password</h1>
-        <p className="auth-subtitle">
-          Scegli una nuova password per il tuo account.
-        </p>
+        <h1 className="auth-title">{t('title')}</h1>
+        <p className="auth-subtitle">{t('subtitle')}</p>
 
-        <Suspense fallback={<p>Caricamento...</p>}>
+        <Suspense fallback={<p>...</p>}>
           <ResetPasswordForm />
         </Suspense>
 
         <p className="auth-footer-link">
-          <Link href="/login">← Torna al Login</Link>
+          <Link href="/login">{t('backToLogin')}</Link>
         </p>
       </div>
     </div>

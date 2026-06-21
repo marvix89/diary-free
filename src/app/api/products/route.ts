@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { encrypt, safeDecrypt } from '@/lib/crypto';
 import { ensureSchema, getDb } from '@/lib/db';
 import type { Product } from '@/types';
+import { cookies } from 'next/headers';
 
 export async function GET() {
   const session = await auth();
@@ -13,10 +14,29 @@ export async function GET() {
     await ensureSchema();
     const sql = getDb();
 
+    // Legge la lingua dal cookie impostato da next-intl
+    const cookieStore = await cookies();
+    const locale = cookieStore.get('NEXT_LOCALE')?.value ?? 'it';
+
+    // JOIN con product_translations: usa la traduzione se disponibile,
+    // altrimenti (per i prodotti custom o senza traduzione) usa il valore base
     const rows = await sql`
-      SELECT * FROM products
-      WHERE user_id IS NULL OR user_id = ${session.user.id}
-      ORDER BY created_at ASC
+      SELECT
+        p.id,
+        p.category,
+        p.emoji,
+        p.tags,
+        p.lactose_level,
+        p.is_lactose_free,
+        p.is_custom,
+        p.user_id,
+        COALESCE(pt.name,        p.name_enc)        AS name_enc,
+        COALESCE(pt.description, p.description_enc) AS description_enc
+      FROM products p
+      LEFT JOIN product_translations pt
+        ON pt.product_id = p.id AND pt.locale = ${locale}
+      WHERE p.user_id IS NULL OR p.user_id = ${session.user.id}
+      ORDER BY p.created_at ASC
     ` as Record<string, unknown>[];
 
     const products: Product[] = rows.map((row) => ({

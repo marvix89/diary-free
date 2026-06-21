@@ -1,5 +1,6 @@
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
 import { PRODUCTS } from '@/data/products';
+import { PRODUCTS_EN } from '@/data/products_en';
 
 let schemaReady = false;
 
@@ -62,12 +63,24 @@ export async function ensureSchema(): Promise<void> {
     )
   `;
 
+  // Tabella traduzioni: una riga per ogni (prodotto, lingua)
+  await sql`
+    CREATE TABLE IF NOT EXISTS product_translations (
+      product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      locale      TEXT NOT NULL,
+      name        TEXT NOT NULL,
+      description TEXT NOT NULL,
+      PRIMARY KEY (product_id, locale)
+    )
+  `;
+
   await seedStaticProducts(sql);
   schemaReady = true;
 }
 
 async function seedStaticProducts(sql: SqlFn): Promise<void> {
   for (const product of PRODUCTS) {
+    // Inserisce il prodotto base (nome/descrizione in italiano come fallback)
     await sql`
       INSERT INTO products (
         id, name_enc, description_enc, category, emoji, tags,
@@ -87,5 +100,22 @@ async function seedStaticProducts(sql: SqlFn): Promise<void> {
       )
       ON CONFLICT (id) DO NOTHING
     `;
+
+    // Traduzione italiana
+    await sql`
+      INSERT INTO product_translations (product_id, locale, name, description)
+      VALUES (${product.id}, 'it', ${product.name}, ${product.description})
+      ON CONFLICT (product_id, locale) DO NOTHING
+    `;
+
+    // Traduzione inglese (se disponibile)
+    const en = PRODUCTS_EN[product.id];
+    if (en) {
+      await sql`
+        INSERT INTO product_translations (product_id, locale, name, description)
+        VALUES (${product.id}, 'en', ${en.name}, ${en.description})
+        ON CONFLICT (product_id, locale) DO NOTHING
+      `;
+    }
   }
 }

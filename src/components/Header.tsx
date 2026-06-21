@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations, useLocale } from 'next-intl';
-import { Link, usePathname, useRouter } from '@/i18n/routing';
+import { Link, usePathname } from '@/i18n/routing';
 import { signOut, useSession } from 'next-auth/react';
 import { useApp } from '@/context/AppContext';
 import { useState, useRef, useEffect } from 'react';
@@ -9,9 +9,8 @@ import { useState, useRef, useEffect } from 'react';
 export default function Header() {
   const t = useTranslations('Header');
   const locale = useLocale();
-  const router = useRouter();
   const pathname = usePathname();
-  
+
   const { data: session } = useSession();
   const { favoriteProducts, isDark, toggleTheme } = useApp();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -21,7 +20,7 @@ export default function Header() {
     path === '/' ? pathname === '/' : pathname.startsWith(path);
 
   const changeLanguage = (newLocale: string) => {
-    router.replace(pathname, { locale: newLocale });
+    window.location.href = `/${newLocale}${pathname === '/' ? '' : pathname}`;
     setIsDropdownOpen(false);
   };
 
@@ -77,10 +76,22 @@ export default function Header() {
             <span className="nav-label">{t('add')}</span>
           </Link>
 
-          {/* Top level language selector */}
-          <div className="nav-btn" style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}>
-            <span onClick={() => changeLanguage('it')} style={{ opacity: locale === 'it' ? 1 : 0.5 }}>🇮🇹</span>
-            <span onClick={() => changeLanguage('en')} style={{ opacity: locale === 'en' ? 1 : 0.5 }}>🇬🇧</span>
+          {/* Top-level language switcher with real flag images */}
+          <div className="lang-switcher">
+            <button
+              className={`lang-btn ${locale === 'it' ? 'active' : ''}`}
+              onClick={() => changeLanguage('it')}
+              title="Italiano"
+            >
+              <span className="fi fi-it" />
+            </button>
+            <button
+              className={`lang-btn ${locale === 'en' ? 'active' : ''}`}
+              onClick={() => changeLanguage('en')}
+              title="English"
+            >
+              <span className="fi fi-gb" />
+            </button>
           </div>
 
           {session?.user && (
@@ -93,7 +104,7 @@ export default function Header() {
               >
                 {(session.user.email ?? 'U')[0].toUpperCase()}
               </button>
-              
+
               {isDropdownOpen && (
                 <div className="user-dropdown">
                   <button onClick={() => { toggleTheme(); setIsDropdownOpen(false); }}>
@@ -102,12 +113,24 @@ export default function Header() {
                   <Link href="/profile" onClick={() => setIsDropdownOpen(false)}>
                     <span>⚙️</span> {t('account')}
                   </Link>
-                  
+
                   {/* Dropdown language selector */}
-                  <div style={{ padding: '8px 16px', display: 'flex', gap: '12px', borderTop: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Lingua / Lang:</span>
-                    <span onClick={() => changeLanguage('it')} style={{ cursor: 'pointer', opacity: locale === 'it' ? 1 : 0.4 }}>🇮🇹</span>
-                    <span onClick={() => changeLanguage('en')} style={{ cursor: 'pointer', opacity: locale === 'en' ? 1 : 0.4 }}>🇬🇧</span>
+                  <div className="dropdown-lang-row">
+                    <span className="dropdown-lang-label">{t('langLabel')}:</span>
+                    <button
+                      className={`lang-btn ${locale === 'it' ? 'active' : ''}`}
+                      onClick={() => changeLanguage('it')}
+                      title="Italiano"
+                    >
+                      <span className="fi fi-it" />
+                    </button>
+                    <button
+                      className={`lang-btn ${locale === 'en' ? 'active' : ''}`}
+                      onClick={() => changeLanguage('en')}
+                      title="English"
+                    >
+                      <span className="fi fi-gb" />
+                    </button>
                   </div>
 
                   <button

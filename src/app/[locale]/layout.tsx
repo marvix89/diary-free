@@ -1,16 +1,20 @@
 import type { Metadata } from 'next';
 import { SessionProvider } from 'next-auth/react';
 import '../globals.css';
+import 'flag-icons/css/flag-icons.min.css';
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
+import { getMessages, getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 
-export const metadata: Metadata = {
-  title: 'Dairy Free – Guida per Intolleranti al Lattosio',
-  description:
-    'Dairy Free – La guida per intolleranti al lattosio: catalogo prodotti sicuri, lista preferiti e prodotti personalizzati.',
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'Meta' });
+  return {
+    title: t('site'),
+    description: t('description'),
+  };
+}
 
 export default async function RootLayout({
   children,

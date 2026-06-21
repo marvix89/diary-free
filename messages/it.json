@@ -1,4 +1,16 @@
 {
+  "Meta": {
+    "catalog": "Catalogo – Dairy Free",
+    "favorites": "Preferiti – Dairy Free",
+    "add": "Aggiungi Prodotto – Dairy Free",
+    "login": "Accedi – Dairy Free",
+    "register": "Registrati – Dairy Free",
+    "profile": "Profilo – Dairy Free",
+    "forgotPassword": "Recupera Password – Dairy Free",
+    "resetPassword": "Reimposta Password – Dairy Free",
+    "site": "Dairy Free – Guida per Intolleranti al Lattosio",
+    "description": "Dairy Free – La guida per intolleranti al lattosio: catalogo prodotti sicuri, lista preferiti e prodotti personalizzati."
+  },
   "Header": {
     "catalog": "Catalogo",
     "favorites": "Preferiti",
@@ -7,7 +19,8 @@
     "themeDark": "Tema Scuro",
     "account": "Gestione account",
     "logout": "Esci",
-    "badge": "Senza Lattosio"
+    "badge": "Senza Lattosio",
+    "langLabel": "Lingua"
   },
   "Login": {
     "title": "Bentornato",
@@ -23,6 +36,47 @@
     "register": "Registrati gratuitamente",
     "error": "Email o password non corretti. Riprova."
   },
+  "Register": {
+    "title": "Crea un account",
+    "subtitle": "Registrati per salvare i tuoi prodotti preferiti.",
+    "nameLabel": "Nome (opzionale)",
+    "namePlaceholder": "Il tuo nome",
+    "emailLabel": "Email *",
+    "emailPlaceholder": "tu@esempio.it",
+    "passwordLabel": "Password * (min. 8 caratteri)",
+    "confirmLabel": "Conferma Password *",
+    "submit": "✨ Crea Account",
+    "loading": "⏳ Registrazione…",
+    "hasAccount": "Hai già un account?",
+    "login": "Accedi",
+    "errorPasswordMismatch": "Le password non coincidono.",
+    "errorPasswordLength": "La password deve essere di almeno 8 caratteri.",
+    "errorNetwork": "Errore di rete. Controlla la connessione e riprova."
+  },
+  "ForgotPassword": {
+    "title": "Recupera Password",
+    "subtitle": "Inserisci la tua email per ricevere il link di ripristino.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "tu@esempio.it",
+    "submit": "Invia Link",
+    "loading": "⏳ Invio in corso…",
+    "backToLogin": "← Torna al Login",
+    "successMessage": "Se l'indirizzo email è registrato, riceverai un link per ripristinare la password.",
+    "errorNetwork": "Errore di rete. Riprova."
+  },
+  "ResetPassword": {
+    "title": "Imposta Nuova Password",
+    "subtitle": "Scegli una nuova password per il tuo account.",
+    "newPassword": "Nuova Password",
+    "confirmPassword": "Conferma Password",
+    "submit": "Aggiorna Password",
+    "loading": "⏳ Aggiornamento…",
+    "backToLogin": "← Torna al Login",
+    "successMessage": "Password aggiornata con successo! Verrai reindirizzato al login...",
+    "errorNoToken": "Token mancante. Richiedi un nuovo link.",
+    "errorPasswordMismatch": "Le password non coincidono.",
+    "errorNetwork": "Errore di rete. Riprova."
+  },
   "Profile": {
     "title": "Gestione Profilo",
     "subtitle": "Modifica i tuoi dati personali o cambia la password.",
@@ -37,6 +91,80 @@
     "newPassword": "Nuova Password",
     "confirmPassword": "Conferma Nuova Password",
     "updatePassword": "Aggiorna Password",
-    "updating": "Aggiornamento..."
+    "updating": "Aggiornamento...",
+    "profileUpdated": "Profilo aggiornato con successo.",
+    "passwordUpdated": "Password aggiornata con successo.",
+    "errorLoad": "Errore nel caricamento del profilo.",
+    "errorNetwork": "Errore di connessione.",
+    "errorPasswordMismatch": "Le nuove password non coincidono."
+  },
+  "Catalog": {
+    "loading": "Caricamento catalogo…",
+    "errorTitle": "Errore di caricamento",
+    "retry": "Riprova",
+    "searchPlaceholder": "Cerca prodotti, ingredienti, tag…",
+    "searchLabel": "Cerca prodotti",
+    "clearSearch": "Cancella ricerca",
+    "filterAll": "🌟 Tutti",
+    "filterLabel": "Filtra per categoria",
+    "title": "Catalogo Prodotti",
+    "count": "{shown} di {total}",
+    "noResultsTitle": "Nessun prodotto trovato",
+    "noResultsDesc": "Prova a cambiare la ricerca o i filtri.",
+    "resetFilters": "Reimposta filtri"
+  },
+  "Favorites": {
+    "loading": "Caricamento preferiti…",
+    "title": "I Miei Preferiti",
+    "count": "{count} prodotti",
+    "statFavorites": "Preferiti",
+    "statCategories": "Categorie",
+    "statPersonal": "Personali",
+    "emptyTitle": "Nessun preferito ancora",
+    "emptyDesc": "Sfoglia il catalogo e premi ❤️ sui prodotti che vuoi salvare.",
+    "goToCatalog": "Vai al Catalogo"
+  },
+  "AddProduct": {
+    "heroTitle": "Aggiungi un Prodotto",
+    "heroDesc": "Non trovi un prodotto sicuro? Aggiungilo alla tua lista personale.",
+    "iconLabel": "Icona Prodotto",
+    "iconPickerLabel": "Scegli un'icona",
+    "nameLabel": "Nome Prodotto *",
+    "namePlaceholder": "es. Latte di Riso",
+    "categoryLabel": "Categoria",
+    "descLabel": "Descrizione *",
+    "descPlaceholder": "Descrivi brevemente il prodotto…",
+    "descCounter": "{count}/200 caratteri",
+    "tagsLabel": "Tag (separati da virgola)",
+    "tagsPlaceholder": "es. vegan, proteico, senza glutine",
+    "tagsHint": "Aiutano nella ricerca",
+    "lactoseLabel": "Livello di Lattosio",
+    "lactoseNone": "✓ 0% – Completamente privo",
+    "lactoseTrace": "⚠ Tracce – Quantità minime",
+    "lactoseLow": "~ Basso – Generalmente tollerato",
+    "submit": "✨ Aggiungi Prodotto",
+    "submitting": "⏳ Salvataggio…",
+    "successTitle": "Prodotto aggiunto!",
+    "successDesc": "Il tuo prodotto è stato salvato in modo sicuro. Reindirizzamento al catalogo…",
+    "errorDefault": "Errore durante il salvataggio"
+  },
+  "Categories": {
+    "alternative-vegetali": "Alternative Vegetali",
+    "formaggi": "Formaggi & Spalmabili",
+    "yogurt-dessert": "Yogurt & Dessert",
+    "dolci-biscotti": "Dolci & Biscotti",
+    "gelati": "Gelati",
+    "piatti-pronti": "Piatti Pronti",
+    "personalizzato": "Personalizzato"
+  },
+  "ProductCard": {
+    "lactoseNone": "✓ 0% Lattosio",
+    "lactoseTrace": "⚠ Tracce",
+    "lactoseLow": "~ Basso",
+    "customBadge": "⭐ Personale",
+    "addFavorite": "Aggiungi ai preferiti",
+    "removeFavorite": "Rimuovi dai preferiti",
+    "removeProduct": "Rimuovi prodotto",
+    "removeConfirm": "Rimuovere \"{name}\" dalla lista?"
   }
 }

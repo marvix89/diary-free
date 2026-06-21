@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations('ForgotPassword');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -23,14 +25,14 @@ export default function ForgotPasswordPage() {
       });
 
       if (res.ok) {
-        setMessage('Se l\'indirizzo email è registrato, riceverai un link per ripristinare la password.');
+        setMessage(t('successMessage'));
         setEmail('');
       } else {
         const data = await res.json();
-        setError(data.error || 'Si è verificato un errore.');
+        setError(data.error || t('errorNetwork'));
       }
-    } catch (err) {
-      setError('Errore di rete. Riprova.');
+    } catch {
+      setError(t('errorNetwork'));
     } finally {
       setLoading(false);
     }
@@ -44,21 +46,19 @@ export default function ForgotPasswordPage() {
           <span className="auth-logo-text">Dairy Free</span>
         </div>
 
-        <h1 className="auth-title">Recupera Password</h1>
-        <p className="auth-subtitle">
-          Inserisci la tua email per ricevere il link di ripristino.
-        </p>
+        <h1 className="auth-title">{t('title')}</h1>
+        <p className="auth-subtitle">{t('subtitle')}</p>
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="form-group">
             <label className="form-label" htmlFor="forgot-email">
-              Email
+              {t('emailLabel')}
             </label>
             <input
               id="forgot-email"
               type="email"
               className="form-input"
-              placeholder="tu@esempio.it"
+              placeholder={t('emailPlaceholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -78,17 +78,13 @@ export default function ForgotPasswordPage() {
             </div>
           )}
 
-          <button
-            type="submit"
-            className="submit-btn"
-            disabled={loading}
-          >
-            {loading ? '⏳ Invio in corso…' : 'Invia Link'}
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? t('loading') : t('submit')}
           </button>
         </form>
 
         <p className="auth-footer-link">
-          <Link href="/login">← Torna al Login</Link>
+          <Link href="/login">{t('backToLogin')}</Link>
         </p>
       </div>
     </div>

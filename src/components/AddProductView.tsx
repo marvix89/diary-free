@@ -5,7 +5,8 @@ import type { FormEvent } from 'react';
 import type { Category } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { CATEGORIES } from '@/data/products';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 const EMOJI_OPTIONS = [
   '🥛','🌿','🌾','🥥','🫙','🧀','🧈','🍌','🥑','🫐',
@@ -15,6 +16,8 @@ const EMOJI_OPTIONS = [
 ];
 
 export default function AddProductView() {
+  const t = useTranslations('AddProduct');
+  const tCat = useTranslations('Categories');
   const { addCustomProduct } = useApp();
   const router = useRouter();
 
@@ -59,7 +62,7 @@ export default function AddProductView() {
         router.push('/');
       }, 1500);
     } catch (err) {
-      setSubmitError((err as Error).message ?? 'Errore durante il salvataggio');
+      setSubmitError((err as Error).message ?? t('errorDefault'));
       setIsSubmitting(false);
     }
   };
@@ -68,30 +71,27 @@ export default function AddProductView() {
     <div className="add-view">
       <div className="add-hero">
         <div className="add-hero-icon">➕</div>
-        <h1>Aggiungi un Prodotto</h1>
-        <p>Non trovi un prodotto sicuro? Aggiungilo alla tua lista personale.</p>
+        <h1>{t('heroTitle')}</h1>
+        <p>{t('heroDesc')}</p>
       </div>
 
       {isSuccess ? (
         <div className="empty-state" role="status" aria-live="polite">
           <span className="empty-icon">✅</span>
-          <p className="empty-title">Prodotto aggiunto!</p>
-          <p className="empty-desc">
-            Il tuo prodotto è stato salvato in modo sicuro. Reindirizzamento al
-            catalogo…
-          </p>
+          <p className="empty-title">{t('successTitle')}</p>
+          <p className="empty-desc">{t('successDesc')}</p>
         </div>
       ) : (
         <form
           className="add-form"
           onSubmit={handleSubmit}
           noValidate
-          aria-label="Modulo aggiunta prodotto"
+          aria-label={t('heroTitle')}
         >
           {/* Emoji picker */}
           <div className="form-group">
-            <label className="form-label">Icona Prodotto</label>
-            <div className="emoji-picker" role="listbox" aria-label="Scegli un'icona">
+            <label className="form-label">{t('iconLabel')}</label>
+            <div className="emoji-picker" role="listbox" aria-label={t('iconPickerLabel')}>
               {EMOJI_OPTIONS.map((e) => (
                 <button
                   key={e}
@@ -112,13 +112,13 @@ export default function AddProductView() {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label" htmlFor="product-name">
-                Nome Prodotto *
+                {t('nameLabel')}
               </label>
               <input
                 id="product-name"
                 className="form-input"
                 type="text"
-                placeholder="es. Latte di Riso"
+                placeholder={t('namePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={60}
@@ -128,7 +128,7 @@ export default function AddProductView() {
             </div>
             <div className="form-group">
               <label className="form-label" htmlFor="product-category">
-                Categoria
+                {t('categoryLabel')}
               </label>
               <select
                 id="product-category"
@@ -138,7 +138,7 @@ export default function AddProductView() {
               >
                 {CATEGORIES.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.emoji} {c.label}
+                    {c.emoji} {tCat(c.id)}
                   </option>
                 ))}
               </select>
@@ -148,41 +148,41 @@ export default function AddProductView() {
           {/* Description */}
           <div className="form-group">
             <label className="form-label" htmlFor="product-description">
-              Descrizione *
+              {t('descLabel')}
             </label>
             <textarea
               id="product-description"
               className="form-textarea"
-              placeholder="Descrivi brevemente il prodotto…"
+              placeholder={t('descPlaceholder')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={200}
               required
               aria-required="true"
             />
-            <span className="form-hint">{description.length}/200 caratteri</span>
+            <span className="form-hint">{description.length}/200</span>
           </div>
 
           {/* Tags */}
           <div className="form-group">
             <label className="form-label" htmlFor="product-tags">
-              Tag (separati da virgola)
+              {t('tagsLabel')}
             </label>
             <input
               id="product-tags"
               className="form-input"
               type="text"
-              placeholder="es. vegan, proteico, senza glutine"
+              placeholder={t('tagsPlaceholder')}
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
             />
-            <span className="form-hint">Aiutano nella ricerca</span>
+            <span className="form-hint">{t('tagsHint')}</span>
           </div>
 
           {/* Lactose Level */}
           <div className="form-group">
             <label className="form-label" htmlFor="lactose-level">
-              Livello di Lattosio
+              {t('lactoseLabel')}
             </label>
             <select
               id="lactose-level"
@@ -192,9 +192,9 @@ export default function AddProductView() {
                 setLactoseLevel(e.target.value as 'none' | 'trace' | 'low')
               }
             >
-              <option value="none">✓ 0% – Completamente privo</option>
-              <option value="trace">⚠ Tracce – Quantità minime</option>
-              <option value="low">~ Basso – Generalmente tollerato</option>
+              <option value="none">{t('lactoseNone')}</option>
+              <option value="trace">{t('lactoseTrace')}</option>
+              <option value="low">{t('lactoseLow')}</option>
             </select>
           </div>
 
@@ -211,7 +211,7 @@ export default function AddProductView() {
             disabled={!isFormValid || isSubmitting}
             aria-disabled={!isFormValid || isSubmitting}
           >
-            {isSubmitting ? '⏳ Salvataggio…' : '✨ Aggiungi Prodotto'}
+            {isSubmitting ? t('submitting') : t('submit')}
           </button>
         </form>
       )}

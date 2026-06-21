@@ -3,6 +3,7 @@
 import type { Product } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { CATEGORIES } from '@/data/products';
+import { useTranslations } from 'next-intl';
 
 interface ProductCardProps {
   product: Product;
@@ -13,6 +14,7 @@ export default function ProductCard({
   product,
   isShowDeleteButton = false,
 }: ProductCardProps) {
+  const t = useTranslations('ProductCard');
   const { toggleFavorite, isFavorite, removeCustomProduct } = useApp();
   const isFav = isFavorite(product.id);
 
@@ -23,8 +25,16 @@ export default function ProductCard({
   };
 
   const handleDeleteClick = () => {
-    if (confirm(`Rimuovere "${product.name}" dalla lista?`)) {
+    if (confirm(t('removeConfirm', { name: product.name }))) {
       removeCustomProduct(product.id);
+    }
+  };
+
+  const lactoseLabel = () => {
+    switch (product.lactoseLevel) {
+      case 'trace': return t('lactoseTrace');
+      case 'low': return t('lactoseLow');
+      default: return t('lactoseNone');
     }
   };
 
@@ -46,8 +56,8 @@ export default function ProductCard({
             <button
               className="delete-btn"
               onClick={handleDeleteClick}
-              title="Rimuovi prodotto"
-              aria-label={`Rimuovi ${product.name}`}
+              title={t('removeProduct')}
+              aria-label={`${t('removeProduct')}: ${product.name}`}
             >
               🗑️
             </button>
@@ -56,11 +66,11 @@ export default function ProductCard({
             id={`fav-btn-${product.id}`}
             className={`fav-btn ${isFav ? 'is-active' : ''}`}
             onClick={handleFavoriteClick}
-            title={isFav ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+            title={isFav ? t('removeFavorite') : t('addFavorite')}
             aria-label={
               isFav
-                ? `Rimuovi ${product.name} dai preferiti`
-                : `Aggiungi ${product.name} ai preferiti`
+                ? `${t('removeFavorite')}: ${product.name}`
+                : `${t('addFavorite')}: ${product.name}`
             }
             aria-pressed={isFav}
           >
@@ -84,13 +94,10 @@ export default function ProductCard({
 
       <div className="product-footer">
         <span className={`lactose-badge ${product.lactoseLevel ?? 'none'}`}>
-          {product.lactoseLevel === 'none' && '✓ 0% Lattosio'}
-          {product.lactoseLevel === 'trace' && '⚠ Tracce'}
-          {product.lactoseLevel === 'low' && '~ Basso'}
-          {!product.lactoseLevel && '✓ 0% Lattosio'}
+          {lactoseLabel()}
         </span>
         {product.isCustom && (
-          <span className="custom-badge">⭐ Personale</span>
+          <span className="custom-badge">{t('customBadge')}</span>
         )}
       </div>
     </article>

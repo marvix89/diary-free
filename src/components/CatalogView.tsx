@@ -3,8 +3,11 @@
 import { useApp } from '@/context/AppContext';
 import { CATEGORIES } from '@/data/products';
 import ProductCard from './ProductCard';
+import { useTranslations } from 'next-intl';
 
 export default function CatalogView() {
+  const t = useTranslations('Catalog');
+  const tCat = useTranslations('Categories');
   const {
     products,
     allProducts,
@@ -20,7 +23,7 @@ export default function CatalogView() {
     return (
       <div className="loading-state">
         <div className="loading-spinner" />
-        <p>Caricamento catalogo…</p>
+        <p>{t('loading')}</p>
       </div>
     );
   }
@@ -29,10 +32,10 @@ export default function CatalogView() {
     return (
       <div className="empty-state" role="alert">
         <span className="empty-icon">⚠️</span>
-        <p className="empty-title">Errore di caricamento</p>
+        <p className="empty-title">{t('errorTitle')}</p>
         <p className="empty-desc">{error}</p>
         <button className="empty-cta" onClick={() => window.location.reload()}>
-          Riprova
+          {t('retry')}
         </button>
       </div>
     );
@@ -41,23 +44,23 @@ export default function CatalogView() {
   return (
     <div>
       {/* Search & Filters */}
-      <section className="search-section" aria-label="Ricerca e filtri">
+      <section className="search-section" aria-label={t('filterLabel')}>
         <div className="search-box">
           <span className="search-icon">🔍</span>
           <input
             id="catalog-search"
             className="search-input"
             type="search"
-            placeholder="Cerca prodotti, ingredienti, tag…"
+            placeholder={t('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Cerca prodotti"
+            aria-label={t('searchLabel')}
           />
           {searchQuery && (
             <button
               className="search-clear"
               onClick={() => setSearchQuery('')}
-              aria-label="Cancella ricerca"
+              aria-label={t('clearSearch')}
             >
               ✕
             </button>
@@ -67,7 +70,7 @@ export default function CatalogView() {
         <div
           className="category-filters"
           role="tablist"
-          aria-label="Filtra per categoria"
+          aria-label={t('filterLabel')}
         >
           <button
             id="filter-all"
@@ -76,7 +79,7 @@ export default function CatalogView() {
             onClick={() => setSelectedCategory(null)}
             aria-selected={!selectedCategory}
           >
-            🌟 Tutti
+            {t('filterAll')}
           </button>
           {CATEGORIES.map((cat) => (
             <button
@@ -91,7 +94,7 @@ export default function CatalogView() {
               }
               aria-selected={selectedCategory === cat.id}
             >
-              {cat.emoji} {cat.label}
+              {cat.emoji} {tCat(cat.id)}
             </button>
           ))}
         </div>
@@ -101,18 +104,17 @@ export default function CatalogView() {
       <div className="section-header">
         <h1 className="section-title">
           {selectedCategory
-            ? CATEGORIES.find((c) => c.id === selectedCategory)?.label ??
-              'Prodotti'
-            : 'Catalogo Prodotti'}
+            ? tCat(selectedCategory as string)
+            : t('title')}
         </h1>
         <span className="section-count">
-          {products.length} di {allProducts.length}
+          {products.length} / {allProducts.length}
         </span>
       </div>
 
       {/* Grid */}
       {products.length > 0 ? (
-        <div className="products-grid" role="list" aria-label="Lista prodotti">
+        <div className="products-grid" role="list" aria-label={t('title')}>
           {products.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
@@ -120,10 +122,8 @@ export default function CatalogView() {
       ) : (
         <div className="empty-state" role="status">
           <span className="empty-icon">🔎</span>
-          <p className="empty-title">Nessun prodotto trovato</p>
-          <p className="empty-desc">
-            Prova a cambiare la ricerca o i filtri.
-          </p>
+          <p className="empty-title">{t('noResultsTitle')}</p>
+          <p className="empty-desc">{t('noResultsDesc')}</p>
           <button
             className="empty-cta"
             onClick={() => {
@@ -131,7 +131,7 @@ export default function CatalogView() {
               setSelectedCategory(null);
             }}
           >
-            Reimposta filtri
+            {t('resetFilters')}
           </button>
         </div>
       )}

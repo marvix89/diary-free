@@ -1,10 +1,12 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import ProductCard from './ProductCard';
+import { useTranslations } from 'next-intl';
 
 export default function FavoritesView() {
+  const t = useTranslations('Favorites');
   const { favoriteProducts, customProducts, isLoading } = useApp();
 
   const categoriesCount = [
@@ -15,7 +17,7 @@ export default function FavoritesView() {
     return (
       <div className="loading-state">
         <div className="loading-spinner" />
-        <p>Caricamento preferiti…</p>
+        <p>{t('loading')}</p>
       </div>
     );
   }
@@ -23,28 +25,28 @@ export default function FavoritesView() {
   return (
     <div>
       <div className="section-header">
-        <h1 className="section-title">I Miei Preferiti</h1>
-        <span className="section-count">{favoriteProducts.length} prodotti</span>
+        <h1 className="section-title">{t('title')}</h1>
+        <span className="section-count">{favoriteProducts.length} {t('statFavorites').toLowerCase()}</span>
       </div>
 
       {favoriteProducts.length > 0 ? (
         <>
-          <div className="stats-bar" aria-label="Statistiche preferiti">
+          <div className="stats-bar" aria-label={t('title')}>
             <div className="stat-card">
               <div className="stat-value">{favoriteProducts.length}</div>
-              <div className="stat-label">Preferiti</div>
+              <div className="stat-label">{t('statFavorites')}</div>
             </div>
             <div className="stat-card">
               <div className="stat-value">{categoriesCount}</div>
-              <div className="stat-label">Categorie</div>
+              <div className="stat-label">{t('statCategories')}</div>
             </div>
             <div className="stat-card">
               <div className="stat-value">{customProducts.length}</div>
-              <div className="stat-label">Personali</div>
+              <div className="stat-label">{t('statPersonal')}</div>
             </div>
           </div>
 
-          <div className="products-grid" role="list" aria-label="Prodotti preferiti">
+          <div className="products-grid" role="list" aria-label={t('title')}>
             {favoriteProducts.map((p) => (
               <ProductCard
                 key={p.id}
@@ -57,12 +59,10 @@ export default function FavoritesView() {
       ) : (
         <div className="empty-state" role="status">
           <span className="empty-icon">💔</span>
-          <p className="empty-title">Nessun preferito ancora</p>
-          <p className="empty-desc">
-            Sfoglia il catalogo e premi ❤️ sui prodotti che vuoi salvare.
-          </p>
+          <p className="empty-title">{t('emptyTitle')}</p>
+          <p className="empty-desc">{t('emptyDesc')}</p>
           <Link href="/" className="empty-cta">
-            Vai al Catalogo
+            {t('goToCatalog')}
           </Link>
         </div>
       )}

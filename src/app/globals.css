@@ -1213,3 +1213,56 @@ a.empty-cta {
   display: inline-block;
   text-decoration: none;
 }
+
+/* ===========================
+   Language Switcher
+   =========================== */
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lang-btn {
+  background: none;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 3px 5px;
+  opacity: 0.4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.lang-btn .fi {
+  width: 20px;
+  height: 15px;
+  border-radius: 2px;
+  display: block;
+}
+
+.lang-btn:hover { opacity: 0.8; }
+
+.lang-btn.active {
+  opacity: 1;
+  border-color: var(--border);
+  background: var(--bg-input);
+}
+
+/* Row inside user dropdown */
+.dropdown-lang-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.dropdown-lang-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  flex: 1;
+}
+

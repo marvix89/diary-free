@@ -1,4 +1,16 @@
 {
+  "Meta": {
+    "catalog": "Catalog – Dairy Free",
+    "favorites": "Favorites – Dairy Free",
+    "add": "Add Product – Dairy Free",
+    "login": "Log In – Dairy Free",
+    "register": "Register – Dairy Free",
+    "profile": "Profile – Dairy Free",
+    "forgotPassword": "Forgot Password – Dairy Free",
+    "resetPassword": "Reset Password – Dairy Free",
+    "site": "Dairy Free – Guide for the Lactose Intolerant",
+    "description": "Dairy Free – A guide for the lactose intolerant: safe product catalog, favorites list, and custom products."
+  },
   "Header": {
     "catalog": "Catalog",
     "favorites": "Favorites",
@@ -7,7 +19,8 @@
     "themeDark": "Dark Theme",
     "account": "Account Settings",
     "logout": "Logout",
-    "badge": "Lactose Free"
+    "badge": "Lactose Free",
+    "langLabel": "Language"
   },
   "Login": {
     "title": "Welcome Back",
@@ -23,6 +36,47 @@
     "register": "Register for free",
     "error": "Incorrect email or password. Please try again."
   },
+  "Register": {
+    "title": "Create an account",
+    "subtitle": "Register to save your favourite products.",
+    "nameLabel": "Name (optional)",
+    "namePlaceholder": "Your name",
+    "emailLabel": "Email *",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "Password * (min. 8 characters)",
+    "confirmLabel": "Confirm Password *",
+    "submit": "✨ Create Account",
+    "loading": "⏳ Registering…",
+    "hasAccount": "Already have an account?",
+    "login": "Log in",
+    "errorPasswordMismatch": "Passwords do not match.",
+    "errorPasswordLength": "Password must be at least 8 characters.",
+    "errorNetwork": "Network error. Check your connection and try again."
+  },
+  "ForgotPassword": {
+    "title": "Reset Password",
+    "subtitle": "Enter your email to receive a password reset link.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "submit": "Send Link",
+    "loading": "⏳ Sending…",
+    "backToLogin": "← Back to Login",
+    "successMessage": "If the email address is registered, you will receive a password reset link.",
+    "errorNetwork": "Network error. Please try again."
+  },
+  "ResetPassword": {
+    "title": "Set New Password",
+    "subtitle": "Choose a new password for your account.",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "submit": "Update Password",
+    "loading": "⏳ Updating…",
+    "backToLogin": "← Back to Login",
+    "successMessage": "Password updated successfully! Redirecting to login...",
+    "errorNoToken": "Token missing. Please request a new link.",
+    "errorPasswordMismatch": "Passwords do not match.",
+    "errorNetwork": "Network error. Please try again."
+  },
   "Profile": {
     "title": "Profile Management",
     "subtitle": "Update your personal details or change your password.",
@@ -37,6 +91,80 @@
     "newPassword": "New Password",
     "confirmPassword": "Confirm New Password",
     "updatePassword": "Update Password",
-    "updating": "Updating..."
+    "updating": "Updating...",
+    "profileUpdated": "Profile updated successfully.",
+    "passwordUpdated": "Password updated successfully.",
+    "errorLoad": "Error loading profile.",
+    "errorNetwork": "Connection error.",
+    "errorPasswordMismatch": "New passwords do not match."
+  },
+  "Catalog": {
+    "loading": "Loading catalog…",
+    "errorTitle": "Loading error",
+    "retry": "Retry",
+    "searchPlaceholder": "Search products, ingredients, tags…",
+    "searchLabel": "Search products",
+    "clearSearch": "Clear search",
+    "filterAll": "🌟 All",
+    "filterLabel": "Filter by category",
+    "title": "Product Catalog",
+    "count": "{shown} of {total}",
+    "noResultsTitle": "No products found",
+    "noResultsDesc": "Try changing your search or filters.",
+    "resetFilters": "Reset filters"
+  },
+  "Favorites": {
+    "loading": "Loading favorites…",
+    "title": "My Favorites",
+    "count": "{count} products",
+    "statFavorites": "Favorites",
+    "statCategories": "Categories",
+    "statPersonal": "Custom",
+    "emptyTitle": "No favorites yet",
+    "emptyDesc": "Browse the catalog and press ❤️ on products you want to save.",
+    "goToCatalog": "Go to Catalog"
+  },
+  "AddProduct": {
+    "heroTitle": "Add a Product",
+    "heroDesc": "Can't find a safe product? Add it to your personal list.",
+    "iconLabel": "Product Icon",
+    "iconPickerLabel": "Choose an icon",
+    "nameLabel": "Product Name *",
+    "namePlaceholder": "e.g. Rice Milk",
+    "categoryLabel": "Category",
+    "descLabel": "Description *",
+    "descPlaceholder": "Briefly describe the product…",
+    "descCounter": "{count}/200 characters",
+    "tagsLabel": "Tags (comma separated)",
+    "tagsPlaceholder": "e.g. vegan, high-protein, gluten-free",
+    "tagsHint": "Help with search",
+    "lactoseLabel": "Lactose Level",
+    "lactoseNone": "✓ 0% – Completely free",
+    "lactoseTrace": "⚠ Traces – Minimal amounts",
+    "lactoseLow": "~ Low – Generally tolerated",
+    "submit": "✨ Add Product",
+    "submitting": "⏳ Saving…",
+    "successTitle": "Product added!",
+    "successDesc": "Your product has been saved safely. Redirecting to catalog…",
+    "errorDefault": "Error while saving"
+  },
+  "Categories": {
+    "alternative-vegetali": "Plant-based Alternatives",
+    "formaggi": "Cheese & Spreads",
+    "yogurt-dessert": "Yogurt & Dessert",
+    "dolci-biscotti": "Sweets & Biscuits",
+    "gelati": "Ice Cream",
+    "piatti-pronti": "Ready Meals",
+    "personalizzato": "Custom"
+  },
+  "ProductCard": {
+    "lactoseNone": "✓ 0% Lactose",
+    "lactoseTrace": "⚠ Traces",
+    "lactoseLow": "~ Low",
+    "customBadge": "⭐ Custom",
+    "addFavorite": "Add to favorites",
+    "removeFavorite": "Remove from favorites",
+    "removeProduct": "Remove product",
+    "removeConfirm": "Remove \"{name}\" from the list?"
   }
 }

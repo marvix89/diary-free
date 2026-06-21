@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useRouter, Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 export default function RegisterPage() {
+  const t = useTranslations('Register');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,11 +20,11 @@ export default function RegisterPage() {
     setError('');
 
     if (password !== confirm) {
-      setError('Le password non coincidono.');
+      setError(t('errorPasswordMismatch'));
       return;
     }
     if (password.length < 8) {
-      setError('La password deve essere di almeno 8 caratteri.');
+      setError(t('errorPasswordLength'));
       return;
     }
 
@@ -39,17 +40,16 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? 'Errore durante la registrazione.');
+        setError(data.error ?? t('errorNetwork'));
         setLoading(false);
         return;
       }
 
-      // Auto-login dopo la registrazione
       await signIn('credentials', { email, password, redirect: false });
       router.push('/');
       router.refresh();
     } catch {
-      setError('Errore di rete. Controlla la connessione e riprova.');
+      setError(t('errorNetwork'));
       setLoading(false);
     }
   };
@@ -62,21 +62,19 @@ export default function RegisterPage() {
           <span className="auth-logo-text">Dairy Free</span>
         </div>
 
-        <h1 className="auth-title">Crea un account</h1>
-        <p className="auth-subtitle">
-          Registrati per salvare i tuoi prodotti preferiti.
-        </p>
+        <h1 className="auth-title">{t('title')}</h1>
+        <p className="auth-subtitle">{t('subtitle')}</p>
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="form-group">
             <label className="form-label" htmlFor="reg-name">
-              Nome (opzionale)
+              {t('nameLabel')}
             </label>
             <input
               id="reg-name"
               type="text"
               className="form-input"
-              placeholder="Il tuo nome"
+              placeholder={t('namePlaceholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
@@ -85,13 +83,13 @@ export default function RegisterPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="reg-email">
-              Email *
+              {t('emailLabel')}
             </label>
             <input
               id="reg-email"
               type="email"
               className="form-input"
-              placeholder="tu@esempio.it"
+              placeholder={t('emailPlaceholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -101,7 +99,7 @@ export default function RegisterPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="reg-password">
-              Password * (min. 8 caratteri)
+              {t('passwordLabel')}
             </label>
             <input
               id="reg-password"
@@ -117,7 +115,7 @@ export default function RegisterPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="reg-confirm">
-              Conferma Password *
+              {t('confirmLabel')}
             </label>
             <input
               id="reg-confirm"
@@ -143,12 +141,12 @@ export default function RegisterPage() {
             className="submit-btn"
             disabled={loading}
           >
-            {loading ? '⏳ Registrazione…' : '✨ Crea Account'}
+            {loading ? t('loading') : t('submit')}
           </button>
         </form>
 
         <p className="auth-footer-link">
-          Hai già un account? <Link href="/login">Accedi</Link>
+          {t('hasAccount')} <Link href="/login">{t('login')}</Link>
         </p>
       </div>
     </div>
