@@ -19,7 +19,16 @@ export interface ProductEnrichmentData {
   quantity?: string;
 }
 
+export interface PaginatedResult<T> {
+  products: T[];
+  count: number;
+  page: number;
+  pageCount: number;
+  pageSize: number;
+}
+
 export interface IProductEnrichmentProvider {
   fetchByBarcode(barcode: string): Promise<ProductEnrichmentData | null>;
   fetchByName?(name: string, brand?: string): Promise<ProductEnrichmentData | null>;
+  searchProducts?(query: string, locale: string, page?: number, pageSize?: number): Promise<PaginatedResult<any>>;
 }

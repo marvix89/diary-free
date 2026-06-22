@@ -17,6 +17,10 @@ export default function CatalogView() {
     error,
     setSearchQuery,
     setSelectedCategory,
+    page,
+    pageSize,
+    totalCount,
+    setPage,
   } = useApp();
 
   if (isLoading) {
@@ -108,17 +112,42 @@ export default function CatalogView() {
             : t('title')}
         </h1>
         <span className="section-count">
-          {products.length} / {allProducts.length}
+          {products.length} / {totalCount} {t('title')}
         </span>
       </div>
 
       {/* Grid */}
       {products.length > 0 ? (
-        <div className="products-grid" role="list" aria-label={t('title')}>
-          {products.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
+        <>
+          <div className="products-grid" role="list" aria-label={t('title')}>
+            {products.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalCount > pageSize && (
+            <div className="pagination" style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2rem' }}>
+              <button 
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="btn-secondary"
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: 'var(--surface)', color: 'var(--text-primary)' }}
+              >
+                &larr; Prec.
+              </button>
+              <span style={{ alignSelf: 'center', color: 'var(--text-secondary)' }}>Pagina {page} di {Math.ceil(totalCount / pageSize)}</span>
+              <button 
+                onClick={() => setPage(page + 1)}
+                disabled={page >= Math.ceil(totalCount / pageSize)}
+                className="btn-secondary"
+                style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: 'var(--surface)', color: 'var(--text-primary)' }}
+              >
+                Succ. &rarr;
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="empty-state" role="status">
           <span className="empty-icon">🔎</span>

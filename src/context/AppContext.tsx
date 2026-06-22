@@ -19,6 +19,11 @@ interface AppContextType {
   selectedCategory: string | null;
   isLoading: boolean;
   error: string | null;
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  setPage: (p: number) => void;
+  setPageSize: (s: number) => void;
   toggleFavorite: (id: string) => Promise<void>;
   addCustomProduct: (product: Omit<Product, 'id' | 'isCustom'>) => Promise<void>;
   setSearchQuery: (q: string) => void;
@@ -58,48 +63,62 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Carica prodotti e preferiti dal DB in parallelo
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Carica prodotti dinamicamente in base a ricerca e paginazione
   useEffect(() => {
-    const load = async () => {
+    const loadProducts = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [productsRes, favoritesRes] = await Promise.all([
-          fetch('/api/products'),
-          fetch('/api/favorites'),
-        ]);
+        const url = new URL('/api/products', window.location.origin);
+        if (searchQuery) url.searchParams.set('q', searchQuery);
+        url.searchParams.set('page', page.toString());
+        url.searchParams.set('limit', pageSize.toString());
 
-        if (!productsRes.ok || !favoritesRes.ok) {
-          throw new Error('Errore nel caricamento dati. Riprova.');
-        }
-
-        const [products, favorites]: [Product[], string[]] = await Promise.all([
-          productsRes.json(),
-          favoritesRes.json(),
-        ]);
-
-        setAllProducts(products);
-        setFavoriteIds(favorites);
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error('Errore nel caricamento dati.');
+        
+        const data = await res.json();
+        setAllProducts(data.products || []);
+        setTotalCount(data.count || 0);
       } catch (err) {
         setError((err as Error).message);
       } finally {
         setIsLoading(false);
       }
     };
+    
+    // Debounce the search query
+    const timeoutId = setTimeout(() => {
+      loadProducts();
+    }, 800);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, page, pageSize]);
 
-    load();
+  // Carica i preferiti solo una volta all'avvio
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const res = await fetch('/api/favorites');
+        if (res.ok) {
+          const favs = await res.json();
+          setFavoriteIds(favs);
+        }
+      } catch (err) {
+        console.error('Errore caricamento preferiti', err);
+      }
+    };
+    loadFavorites();
   }, []);
 
-  // Prodotti filtrati per ricerca + categoria (client-side)
-  const products = allProducts.filter((p) => {
-    const matchSearch =
-      !searchQuery ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchCategory = !selectedCategory || p.category === selectedCategory;
-    return matchSearch && matchCategory;
-  });
+  // Prodotti filtrati per categoria (ricerca è server side)
+  const products = selectedCategory 
+    ? allProducts.filter((p) => p.category === selectedCategory)
+    : allProducts;
 
   const customProducts = allProducts.filter((p) => p.isCustom);
   const favoriteProducts = allProducts.filter((p) => favoriteIds.includes(p.id));
@@ -184,6 +203,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         removeCustomProduct,
         isDark,
         toggleTheme,
+        page,
+        pageSize,
+        totalCount,
+        setPage,
+        setPageSize,
       }}
     >
       {children}
