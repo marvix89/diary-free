@@ -17,13 +17,83 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '25', 10);
 
-    const cookieStore = await cookies();
-    const locale = cookieStore.get('NEXT_LOCALE')?.value ?? 'it';
+    await ensureSchema();
+    const sql = getDb();
 
-    const provider = new OpenFoodFactsProvider();
-    const result = await provider.searchProducts(q, locale, page, limit);
+    // Per i prodotti pubblici usiamo ILIKE (essendo in chiaro nel DB)
+    const queryFilter = q ? `%${q}%` : '%';
+    const offset = (page - 1) * limit;
 
-    return Response.json(result);
+    const [publicRows, countRows] = await Promise.all([
+      sql`
+        SELECT * FROM products 
+        WHERE is_custom = false AND name_enc ILIKE ${queryFilter}
+        ORDER BY created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `,
+      sql`
+        SELECT count(*) as total FROM products 
+        WHERE is_custom = false AND name_enc ILIKE ${queryFilter}
+      `
+    ]);
+
+    // I prodotti custom sono cifrati, li carichiamo tutti per l'utente,
+    // li decifriamo e li filtriamo in JS.
+    const customRows = await sql`
+      SELECT * FROM products WHERE is_custom = true AND user_id = ${session.user.id}
+    `;
+
+    const customProducts: Product[] = (customRows as any[]).map((row) => {
+      const name = safeDecrypt(row.name_enc as string, true);
+      const desc = safeDecrypt(row.description_enc as string, true);
+      return {
+        id: row.id as string,
+        name,
+        description: desc,
+        category: row.category as Product['category'],
+        emoji: row.emoji as string,
+        tags: (row.tags as string[]) || [],
+        isLactoseFree: row.is_lactose_free as boolean,
+        lactoseLevel: row.lactose_level as Product['lactoseLevel'],
+        isCustom: true,
+      };
+    }).filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.description.toLowerCase().includes(q.toLowerCase()));
+
+    const publicProducts: Product[] = (publicRows as any[]).map((row) => ({
+      id: row.id as string,
+      name: row.name_enc as string,
+      description: row.description_enc as string,
+      category: row.category as Product['category'],
+      emoji: row.emoji as string,
+      tags: (row.tags as string[]) || [],
+      isLactoseFree: row.is_lactose_free as boolean,
+      lactoseLevel: row.lactose_level as Product['lactoseLevel'],
+      isCustom: false,
+      enrichment: {
+        brand: row.brand as string,
+        quantity: row.quantity as string,
+        imageUrl: row.image_url as string,
+        imageThumbnailUrl: row.image_thumbnail_url as string,
+        ingredientsText: row.ingredients_text as string,
+        nutriScore: row.nutriscore as any,
+        novaGroup: row.nova_group as 1 | 2 | 3 | 4 | undefined,
+        ecoScore: row.ecoscore as any,
+        allergens: row.allergens as string[],
+        labels: row.tags as string[],
+      }
+    }));
+
+    // Se siamo alla prima pagina mostriamo i custom in cima, altrimenti solo i pubblici
+    const combinedProducts = page === 1 ? [...customProducts, ...publicProducts] : publicProducts;
+    const totalCount = parseInt((countRows as any[])[0].total) + customProducts.length;
+
+    return Response.json({
+      products: combinedProducts,
+      count: totalCount,
+      page,
+      pageSize: limit,
+      pageCount: Math.ceil(totalCount / limit)
+    });
   } catch (err) {
     console.error('GET /api/products:', err);
     return Response.json({ error: 'Errore nel recupero prodotti' }, { status: 500 });

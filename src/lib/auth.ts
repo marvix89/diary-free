@@ -1,8 +1,17 @@
-import NextAuth from 'next-auth';
+import NextAuth, { DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { ensureSchema } from '@/lib/db';
 import { neon } from '@neondatabase/serverless';
+
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string;
+      isAdmin?: boolean;
+    } & DefaultSession['user'];
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -22,7 +31,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const sql = neon(process.env.DATABASE_URL!);
 
           const rows = await sql`
-            SELECT id, email, password_hash FROM users WHERE email = ${email}
+            SELECT id, email, password_hash, is_admin FROM users WHERE email = ${email}
           `;
 
           const user = rows[0];
@@ -34,6 +43,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return {
             id: user.id as string,
             email: user.email as string,
+            isAdmin: user.is_admin as boolean,
           };
         } catch (err) {
           console.error('Auth error:', err);
@@ -46,12 +56,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user?.id) {
         token.userId = user.id;
+        token.isAdmin = (user as any).isAdmin;
       }
       return token;
     },
     session({ session, token }) {
       if (token.userId) {
         session.user.id = token.userId as string;
+        session.user.isAdmin = token.isAdmin as boolean;
       }
       return session;
     },

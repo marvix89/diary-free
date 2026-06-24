@@ -21,6 +21,8 @@ export { getDb };
 export async function ensureSchema(): Promise<void> {
   if (schemaReady) return;
   const sql = getDb();
+  // Cleanup di tabelle non più in uso
+  await sql`DROP TABLE IF EXISTS product_translations`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS users (
@@ -30,12 +32,54 @@ export async function ensureSchema(): Promise<void> {
       password_hash TEXT        NOT NULL,
       reset_token   TEXT,
       reset_token_expires TIMESTAMPTZ,
-      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      is_admin      BOOLEAN     NOT NULL DEFAULT false
     )
   `;
 
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS products (
+      id              TEXT        PRIMARY KEY,
+      name_enc        TEXT        NOT NULL,
+      description_enc TEXT        NOT NULL,
+      category        TEXT        NOT NULL,
+      emoji           TEXT        NOT NULL,
+      tags            TEXT[]      NOT NULL DEFAULT '{}',
+      lactose_level   TEXT        NOT NULL DEFAULT 'none',
+      is_lactose_free BOOLEAN     NOT NULL DEFAULT true,
+      is_custom       BOOLEAN     NOT NULL DEFAULT false,
+      user_id         UUID        REFERENCES users(id) ON DELETE CASCADE,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      
+      -- Enrichment columns
+      image_url           TEXT,
+      image_thumbnail_url TEXT,
+      nutriscore          TEXT,
+      nova_group          INT,
+      ecoscore            TEXT,
+      allergens           TEXT[],
+      ingredients_text    TEXT,
+      nutriments          JSONB,
+      brand               TEXT,
+      quantity            TEXT
+    )
+  `;
+
+  // Add enrichment columns if the table already exists
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS image_thumbnail_url TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nutriscore TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nova_group INT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS ecoscore TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS allergens TEXT[]`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS ingredients_text TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nutriments JSONB`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS quantity TEXT`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS favorites (
