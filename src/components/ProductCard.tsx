@@ -17,11 +17,9 @@ export default function ProductCard({
   isShowDeleteButton = false,
 }: ProductCardProps) {
   const t = useTranslations('ProductCard');
-  const { toggleFavorite, isFavorite, removeCustomProduct, categories } = useApp();
+  const { toggleFavorite, isFavorite, removeCustomProduct } = useApp();
   const isFav = isFavorite(product.id);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const categoryInfo = categories.find((c) => c.id === product.category) || { color: product.categoryColor || '#6366f1' };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -35,14 +33,6 @@ export default function ProductCard({
     }
   };
 
-  const lactoseLabel = () => {
-    switch (product.lactoseLevel) {
-      case 'trace': return t('lactoseTrace');
-      case 'low': return t('lactoseLow');
-      default: return t('lactoseNone');
-    }
-  };
-
   return (
     <article
       className="product-card"
@@ -51,14 +41,7 @@ export default function ProductCard({
       style={{ cursor: 'pointer' }}
     >
       <div className="product-card-header">
-        <div
-          className="product-emoji-wrap"
-          style={{
-            background: categoryInfo
-              ? `${categoryInfo.color}18`
-              : undefined,
-          }}
-        >
+        <div className="product-emoji-wrap">
           {product.emoji}
         </div>
         <div className="product-card-actions">
@@ -116,23 +99,6 @@ export default function ProductCard({
               : product.description}
           </p>
         </div>
-      </div>
-
-      <div className="product-footer">
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span className={`lactose-badge ${product.lactoseLevel ?? 'none'}`}>
-            {lactoseLabel()}
-          </span>
-          {product.enrichment?.nutriScore && (
-            <span className={`nutriscore-badge score-${product.enrichment.nutriScore}`}>
-              Nutri-Score {product.enrichment.nutriScore.toUpperCase()}
-            </span>
-          )}
-        </div>
-        
-        {product.isCustom && (
-          <span className="custom-badge">{t('customBadge')}</span>
-        )}
       </div>
 
       {isDialogOpen && (

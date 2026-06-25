@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import ProductCard from './ProductCard';
 import { useTranslations } from 'next-intl';
@@ -12,30 +11,15 @@ export default function CatalogView() {
     products,
     allProducts,
     categories,
-    searchQuery,
     selectedCategory,
     isLoading,
     error,
-    setSearchQuery,
     setSelectedCategory,
     page,
     pageSize,
     totalCount,
     setPage,
   } = useApp();
-
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   if (isLoading) {
     return (
@@ -113,96 +97,6 @@ export default function CatalogView() {
 
   return (
     <div>
-      {/* Search & Toolbar Unificata Integrata (Proposta A) */}
-      <section className="search-section" aria-label={t('filterLabel')}>
-        <div className="search-toolbar">
-          <div className="search-toolbar-left">
-            <span className="search-icon">🔍</span>
-            
-            {/* Badge categoria attiva integrato nella barra di ricerca */}
-            {activeCatObj && (
-              <span className="active-cat-badge">
-                <span>{activeCatObj.emoji}</span>
-                <span>{activeCatLabel}</span>
-                <button
-                  type="button"
-                  className="active-cat-remove"
-                  onClick={() => setSelectedCategory(null)}
-                  title="Rimuovi filtro categoria"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-
-            <input
-              id="catalog-search"
-              className="search-input"
-              type="search"
-              placeholder={activeCatObj ? `Cerca tra ${activeCatLabel}...` : t('searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label={t('searchLabel')}
-            />
-
-            {searchQuery && (
-              <button
-                type="button"
-                className="search-clear"
-                onClick={() => setSearchQuery('')}
-                aria-label={t('clearSearch')}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          <div className="toolbar-separator" />
-
-          {/* Selettore Categoria a Tendina Compatto */}
-          <div className="cat-dropdown-container" ref={menuRef}>
-            <button
-              type="button"
-              className={`cat-dropdown-btn ${selectedCategory ? 'has-filter' : ''}`}
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-expanded={isMenuOpen}
-              title="Filtra per categoria"
-            >
-              <span>{activeCatObj ? activeCatObj.emoji : '🏷️'}</span>
-              <span className="dropdown-label-text">
-                {activeCatObj ? activeCatLabel : t('filterAll')}
-              </span>
-              <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>▾</span>
-            </button>
-
-            {isMenuOpen && (
-              <div className="cat-dropdown-menu" role="menu">
-                <button
-                  type="button"
-                  className={`cat-dropdown-item ${!selectedCategory ? 'active' : ''}`}
-                  onClick={() => { setSelectedCategory(null); setIsMenuOpen(false); }}
-                >
-                  <span>🌐 {t('filterAll')}</span>
-                  <span className="cat-dropdown-count">{totalCount || allProducts.length}</span>
-                </button>
-
-                {categories.filter(c => Number(c.count) > 0).map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    className={`cat-dropdown-item ${selectedCategory === cat.id ? 'active' : ''}`}
-                    onClick={() => { setSelectedCategory(cat.id); setIsMenuOpen(false); }}
-                  >
-                    <span>{cat.emoji} {getCatName(cat.id, cat.label)}</span>
-                    <span className="cat-dropdown-count">{cat.count}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
       {/* Results header */}
       <div className="section-header">
         <div className="section-header-title">
