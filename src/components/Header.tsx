@@ -113,9 +113,11 @@ export default function Header() {
                   <Link href="/profile" onClick={() => setIsDropdownOpen(false)}>
                     <span>⚙️</span> {t('account')}
                   </Link>
-                  <Link href="/admin" onClick={() => setIsDropdownOpen(false)}>
-                    <span>📥</span> {t('admin')}
-                  </Link>
+                  {session.user.isAdmin && (
+                    <Link href="/admin" onClick={() => setIsDropdownOpen(false)}>
+                      <span>📥</span> {t('admin')}
+                    </Link>
+                  )}
 
                   {/* Dropdown language selector */}
                   <div className="dropdown-lang-row">
