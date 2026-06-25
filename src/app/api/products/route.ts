@@ -60,6 +60,10 @@ export async function GET(request: Request) {
         isLactoseFree: row.is_lactose_free as boolean,
         lactoseLevel: row.lactose_level as Product['lactoseLevel'],
         isCustom: true,
+        enrichment: (row.image_url || row.image_thumbnail_url) ? {
+          imageUrl: row.image_url as string,
+          imageThumbnailUrl: row.image_thumbnail_url as string,
+        } : undefined,
       };
     }).filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.description.toLowerCase().includes(q.toLowerCase()));
 
@@ -112,7 +116,8 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { name, description, category, emoji, tags, lactoseLevel, isLactoseFree } = body;
+    const { name, description, category, emoji, tags, lactoseLevel, isLactoseFree, enrichment } = body;
+    const imageUrl = enrichment?.imageUrl || null;
 
     if (!name?.trim() || !description?.trim()) {
       return Response.json({ error: 'Nome e descrizione obbligatori' }, { status: 400 });
@@ -128,12 +133,14 @@ export async function POST(request: Request) {
     await sql`
       INSERT INTO products (
         id, name_enc, description_enc, category, emoji, tags,
-        lactose_level, is_lactose_free, is_custom, user_id
+        lactose_level, is_lactose_free, is_custom, user_id,
+        image_url, image_thumbnail_url
       )
       VALUES (
         ${id}, ${nameEnc}, ${descEnc}, ${category}, ${emoji},
         ${tags ?? []}, ${lactoseLevel ?? 'none'}, ${isLactoseFree ?? true},
-        true, ${session.user.id}
+        true, ${session.user.id},
+        ${imageUrl}, ${imageUrl}
       )
     `;
 
@@ -147,6 +154,10 @@ export async function POST(request: Request) {
       isLactoseFree: isLactoseFree ?? true,
       lactoseLevel: lactoseLevel ?? 'none',
       isCustom: true,
+      enrichment: imageUrl ? {
+        imageUrl,
+        imageThumbnailUrl: imageUrl,
+      } : undefined,
     };
 
     return Response.json(product, { status: 201 });

@@ -27,6 +27,7 @@ export default function AddProductView() {
   const [emoji, setEmoji] = useState('🌟');
   const [tagsInput, setTagsInput] = useState('');
   const [lactoseLevel, setLactoseLevel] = useState<'none' | 'trace' | 'low'>('none');
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -38,6 +39,58 @@ export default function AddProductView() {
       return tCat(id);
     }
     return fallback || id;
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setSubmitError('File non valido. Seleziona un\'immagine.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitError(t('photoSizeError'));
+      return;
+    }
+
+    setSubmitError('');
+    const objectUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxDim = 300;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        }
+      } else {
+        if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/webp', 0.82);
+        setPhotoUrl(dataUrl);
+      }
+      URL.revokeObjectURL(objectUrl);
+    };
+    img.onerror = () => {
+      setSubmitError('Errore durante il caricamento dell\'immagine.');
+      URL.revokeObjectURL(objectUrl);
+    };
+    img.src = objectUrl;
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -61,6 +114,10 @@ export default function AddProductView() {
         tags,
         isLactoseFree: true,
         lactoseLevel,
+        enrichment: photoUrl ? {
+          imageUrl: photoUrl,
+          imageThumbnailUrl: photoUrl,
+        } : undefined,
       });
 
       setIsSuccess(true);
@@ -68,7 +125,7 @@ export default function AddProductView() {
         router.push('/');
       }, 1500);
     } catch {
-      setSubmitError(t('error'));
+      setSubmitError(t('errorDefault'));
     } finally {
       setIsSubmitting(false);
     }
@@ -114,6 +171,37 @@ export default function AddProductView() {
                   {e}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Photo upload */}
+          <div className="form-group">
+            <label className="form-label">{t('photoLabel')}</label>
+            <div className="photo-upload-container">
+              {photoUrl ? (
+                <>
+                  <div className="photo-preview-wrap">
+                    <img src={photoUrl} alt="Preview" className="photo-preview-img" />
+                  </div>
+                  <button
+                    type="button"
+                    className="photo-remove-btn"
+                    onClick={() => setPhotoUrl(null)}
+                  >
+                    {t('photoRemoveBtn')}
+                  </button>
+                </>
+              ) : (
+                <label className="photo-upload-btn">
+                  {t('photoUploadBtn')}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              )}
             </div>
           </div>
 
