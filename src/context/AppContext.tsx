@@ -42,6 +42,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,8 +125,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetch('/api/favorites');
         if (res.ok) {
-          const favs = await res.json();
-          setFavoriteIds(favs);
+          const favs: Product[] = await res.json();
+          setFavoriteProducts(favs);
+          setFavoriteIds(favs.map((p) => p.id));
         }
       } catch (err) {
         console.error('Errore caricamento preferiti', err);
@@ -143,16 +145,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const products = allProducts;
 
   const customProducts = allProducts.filter((p) => p.isCustom);
-  const favoriteProducts = allProducts.filter((p) => favoriteIds.includes(p.id));
   const isFavorite = (id: string) => favoriteIds.includes(id);
 
   // Toggle preferito con optimistic update
   const toggleFavorite = useCallback(
     async (id: string) => {
       const wasFav = favoriteIds.includes(id);
+      const targetProd = favoriteProducts.find((p) => p.id === id) || allProducts.find((p) => p.id === id);
+
       setFavoriteIds((prev) =>
         wasFav ? prev.filter((f) => f !== id) : [...prev, id]
       );
+      if (targetProd) {
+        setFavoriteProducts((prev) =>
+          wasFav ? prev.filter((p) => p.id !== id) : [targetProd, ...prev]
+        );
+      }
+
       try {
         const method = wasFav ? 'DELETE' : 'POST';
         const res = await fetch(`/api/favorites/${id}`, { method });
@@ -162,9 +171,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setFavoriteIds((prev) =>
           wasFav ? [...prev, id] : prev.filter((f) => f !== id)
         );
+        if (targetProd) {
+          setFavoriteProducts((prev) =>
+            wasFav ? [targetProd, ...prev] : prev.filter((p) => p.id !== id)
+          );
+        }
       }
     },
-    [favoriteIds]
+    [favoriteIds, favoriteProducts, allProducts]
   );
 
   // Aggiunta prodotto custom
@@ -191,8 +205,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeCustomProduct = useCallback(
     async (id: string) => {
       const snapshot = allProducts;
+      const favSnapshot = favoriteProducts;
+      const favIdsSnapshot = favoriteIds;
+
       setAllProducts((p) => p.filter((pr) => pr.id !== id));
       setFavoriteIds((f) => f.filter((fid) => fid !== id));
+      setFavoriteProducts((fp) => fp.filter((p) => p.id !== id));
 
       try {
         const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
@@ -200,9 +218,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch {
         // Rollback
         setAllProducts(snapshot);
+        setFavoriteIds(favIdsSnapshot);
+        setFavoriteProducts(favSnapshot);
       }
     },
-    [allProducts]
+    [allProducts, favoriteProducts, favoriteIds]
   );
 
   return (

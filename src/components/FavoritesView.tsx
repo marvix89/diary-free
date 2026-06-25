@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 
 export default function FavoritesView() {
   const t = useTranslations('Favorites');
-  const { favoriteProducts, customProducts, isLoading } = useApp();
+  const { favoriteProducts, isLoading } = useApp();
 
   const categoriesCount = [
     ...new Set(favoriteProducts.map((p) => p.category)),
@@ -41,7 +41,7 @@ export default function FavoritesView() {
               <div className="stat-label">{t('statCategories')}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">{customProducts.length}</div>
+              <div className="stat-value">{favoriteProducts.filter((p) => p.isCustom).length}</div>
               <div className="stat-label">{t('statPersonal')}</div>
             </div>
           </div>
