@@ -25,8 +25,10 @@ export default function FavoritesView() {
   return (
     <div>
       <div className="section-header">
-        <h1 className="section-title">{t('title')}</h1>
-        <span className="section-count">{favoriteProducts.length} {t('statFavorites').toLowerCase()}</span>
+        <div className="section-header-title">
+          <h1 className="section-title">{t('title')}</h1>
+          <span className="section-count">{favoriteProducts.length} {t('statFavorites').toLowerCase()}</span>
+        </div>
       </div>
 
       {favoriteProducts.length > 0 ? (

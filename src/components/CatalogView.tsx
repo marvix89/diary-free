@@ -69,6 +69,48 @@ export default function CatalogView() {
   const activeCatObj = selectedCategory ? categories.find(c => c.id === selectedCategory) : null;
   const activeCatLabel = activeCatObj ? getCatName(activeCatObj.id, activeCatObj.label) : null;
 
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const renderPaginationControls = (position: 'top' | 'bottom') => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <nav
+        className={`catalog-pagination ${position}`}
+        aria-label={`Paginazione ${position === 'top' ? 'superiore' : 'inferiore'}`}
+      >
+        <button
+          type="button"
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="pagination-btn"
+          aria-label="Pagina precedente"
+        >
+          <span>&larr;</span>
+          <span>Prec.</span>
+        </button>
+
+        <div className="pagination-badge" aria-current="page">
+          <span>Pagina</span>
+          <strong>{page}</strong>
+          <span>di</span>
+          <strong>{totalPages}</strong>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setPage(Math.min(totalPages, page + 1))}
+          disabled={page >= totalPages}
+          className="pagination-btn"
+          aria-label="Pagina successiva"
+        >
+          <span>Succ.</span>
+          <span>&rarr;</span>
+        </button>
+      </nav>
+    );
+  };
+
   return (
     <div>
       {/* Search & Toolbar Unificata Integrata (Proposta A) */}
@@ -141,7 +183,7 @@ export default function CatalogView() {
                   onClick={() => { setSelectedCategory(null); setIsMenuOpen(false); }}
                 >
                   <span>🌐 {t('filterAll')}</span>
-                  <span className="cat-dropdown-count">{allProducts.length || totalCount}</span>
+                  <span className="cat-dropdown-count">{totalCount || allProducts.length}</span>
                 </button>
 
                 {categories.filter(c => Number(c.count) > 0).map((cat) => (
@@ -163,12 +205,15 @@ export default function CatalogView() {
 
       {/* Results header */}
       <div className="section-header">
-        <h1 className="section-title">
-          {selectedCategory && activeCatLabel ? activeCatLabel : t('title')}
-        </h1>
-        <span className="section-count">
-          {products.length} / {allProducts.length || totalCount} {t('title')}
-        </span>
+        <div className="section-header-title">
+          <h1 className="section-title">
+            {selectedCategory && activeCatLabel ? activeCatLabel : t('title')}
+          </h1>
+          <span className="section-count">
+            {products.length} / {totalCount || allProducts.length} {t('title')}
+          </span>
+        </div>
+        {products.length > 0 && renderPaginationControls('top')}
       </div>
 
       {/* Grid */}
@@ -181,27 +226,7 @@ export default function CatalogView() {
           </div>
 
           {/* Pagination Controls */}
-          {totalCount > pageSize && (
-            <div className="pagination" style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2rem' }}>
-              <button 
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="btn-secondary"
-                style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: 'var(--surface)', color: 'var(--text-primary)' }}
-              >
-                &larr; Prec.
-              </button>
-              <span style={{ alignSelf: 'center', color: 'var(--text-secondary)' }}>Pagina {page} di {Math.ceil(totalCount / pageSize)}</span>
-              <button 
-                onClick={() => setPage(page + 1)}
-                disabled={page >= Math.ceil(totalCount / pageSize)}
-                className="btn-secondary"
-                style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: 'var(--surface)', color: 'var(--text-primary)' }}
-              >
-                Succ. &rarr;
-              </button>
-            </div>
-          )}
+          {renderPaginationControls('bottom')}
         </>
       ) : (
         <div className="empty-state" role="status">
