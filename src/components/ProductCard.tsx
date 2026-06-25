@@ -101,7 +101,11 @@ export default function ProductCard({
           </div>
         )}
         <div className="product-text">
-          <p className="product-description">{product.description}</p>
+          <p className="product-description">
+            {product.description?.length > 130
+              ? `${product.description.slice(0, 130)}...`
+              : product.description}
+          </p>
         </div>
       </div>
 
