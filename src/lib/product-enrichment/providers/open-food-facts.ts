@@ -29,7 +29,11 @@ export class OpenFoodFactsProvider implements IProductEnrichmentProvider {
 
       const url = `${this.baseUrl}/product/${barcode}.json?fields=${fields}`;
       
-      const response = await fetch(url, { headers: this.headers });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(url, { headers: this.headers, signal: controller.signal });
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         if (response.status === 404) return null;
@@ -129,7 +133,11 @@ export class OpenFoodFactsProvider implements IProductEnrichmentProvider {
       ].join(',');
       url.searchParams.append('fields', fields);
 
-      const response = await fetch(url.toString(), { headers: this.headers });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(url.toString(), { headers: this.headers, signal: controller.signal });
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`OpenFoodFacts Search API error: ${response.status}`);
@@ -183,13 +191,7 @@ export class OpenFoodFactsProvider implements IProductEnrichmentProvider {
       
     } catch (error) {
       console.error(`Error searching OpenFoodFacts for query "${query}":`, error);
-      return {
-        products: [],
-        count: 0,
-        page,
-        pageCount: 0,
-        pageSize
-      };
+      throw error;
     }
   }
 }

@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { ensureSchema, getDb } from '@/lib/db';
-import type { Product } from '@/types';
+import { OpenFoodFactsProvider } from '@/lib/product-enrichment/providers/open-food-facts';
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -9,10 +9,17 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { products }: { products: Product[] } = await request.json();
+    const body = await request.json();
+    const q = body.q || '';
+    const page = parseInt(body.page || '1', 10);
+    const limit = parseInt(body.limit || '25', 10);
+    const locale = 'it';
 
-    if (!Array.isArray(products) || products.length === 0) {
-      return Response.json({ error: 'Nessun prodotto fornito' }, { status: 400 });
+    const provider = new OpenFoodFactsProvider();
+    const offResults = await provider.searchProducts(q, locale, page, limit);
+
+    if (!offResults.products || offResults.products.length === 0) {
+      return Response.json({ success: true, count: 0, products: [], pageCount: 0, totalCount: 0, currentPage: page });
     }
 
     await ensureSchema();
@@ -20,7 +27,7 @@ export async function POST(request: Request) {
 
     // Inserimento batch tramite postgres.js
     // Mappiamo i prodotti per l'insert
-    const rowsToInsert = products.map(p => ({
+    const rowsToInsert = offResults.products.map(p => ({
       id: p.id,
       name_enc: p.name, // in chiaro per i pubblici
       description_enc: p.description, // in chiaro per i pubblici
@@ -59,27 +66,22 @@ export async function POST(request: Request) {
         ${r.image_url}, ${r.image_thumbnail_url}, ${r.nutriscore}, ${r.nova_group},
         ${r.ecoscore}, ${r.allergens}, ${r.ingredients_text}, ${r.brand}, ${r.quantity}
       )
-      ON CONFLICT (id) DO UPDATE SET
-        name_enc = EXCLUDED.name_enc,
-        description_enc = EXCLUDED.description_enc,
-        image_url = EXCLUDED.image_url,
-        image_thumbnail_url = EXCLUDED.image_thumbnail_url,
-        ingredients_text = EXCLUDED.ingredients_text,
-        brand = EXCLUDED.brand,
-        quantity = EXCLUDED.quantity,
-        nutriscore = EXCLUDED.nutriscore,
-        nova_group = EXCLUDED.nova_group,
-        ecoscore = EXCLUDED.ecoscore,
-        tags = EXCLUDED.tags,
-        allergens = EXCLUDED.allergens
+      ON CONFLICT (id) DO NOTHING
     `);
 
     await sql.transaction(queries);
 
-    return Response.json({ success: true, count: products.length });
+    return Response.json({ 
+      success: true, 
+      count: offResults.products.length, 
+      products: offResults.products,
+      pageCount: offResults.pageCount,
+      totalCount: offResults.count,
+      currentPage: offResults.page
+    });
 
   } catch (err) {
-    console.error('POST /api/admin/import:', err);
-    return Response.json({ error: 'Errore durante l\'importazione dei prodotti' }, { status: 500 });
+    console.error('POST /api/admin/auto-import:', err);
+    return Response.json({ error: 'Errore durante l\'importazione dei prodotti da OFF' }, { status: 500 });
   }
 }
