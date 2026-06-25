@@ -8,11 +8,12 @@ import {
   useCallback,
 } from 'react';
 import type { ReactNode } from 'react';
-import type { Product } from '@/types';
+import type { Product, CategoryItem } from '@/types';
 
 interface AppContextType {
   products: Product[];
   allProducts: Product[];
+  categories: CategoryItem[];
   favoriteIds: string[];
   customProducts: Product[];
   searchQuery: string;
@@ -39,6 +40,7 @@ const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const url = new URL('/api/products', window.location.origin);
         if (searchQuery) url.searchParams.set('q', searchQuery);
+        if (selectedCategory) url.searchParams.set('category', selectedCategory);
         url.searchParams.set('page', page.toString());
         url.searchParams.set('limit', pageSize.toString());
 
@@ -97,7 +100,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, 800);
     
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, page, pageSize]);
+  }, [searchQuery, selectedCategory, page, pageSize]);
+
+  // Carica le categorie dinamiche dal DB
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await fetch('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data || []);
+        }
+      } catch (err) {
+        console.error('Errore caricamento categorie', err);
+      }
+    };
+    loadCategories();
+  }, []);
 
   // Carica i preferiti solo una volta all'avvio
   useEffect(() => {
@@ -115,10 +134,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadFavorites();
   }, []);
 
-  // Prodotti filtrati per categoria (ricerca è server side)
-  const products = selectedCategory 
-    ? allProducts.filter((p) => p.category === selectedCategory)
-    : allProducts;
+  const handleSetSelectedCategory = useCallback((cat: string | null) => {
+    setSelectedCategory(cat);
+    setPage(1);
+  }, []);
+
+  // Prodotti filtrati dal server
+  const products = allProducts;
 
   const customProducts = allProducts.filter((p) => p.isCustom);
   const favoriteProducts = allProducts.filter((p) => favoriteIds.includes(p.id));
@@ -188,6 +210,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         products,
         allProducts,
+        categories,
         favoriteIds,
         customProducts,
         searchQuery,
@@ -197,7 +220,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toggleFavorite,
         addCustomProduct,
         setSearchQuery,
-        setSelectedCategory,
+        setSelectedCategory: handleSetSelectedCategory,
         isFavorite,
         favoriteProducts,
         removeCustomProduct,

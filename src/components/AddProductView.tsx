@@ -4,7 +4,6 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Category } from '@/types';
 import { useApp } from '@/context/AppContext';
-import { CATEGORIES } from '@/data/products';
 import { useRouter } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 
@@ -13,12 +12,13 @@ const EMOJI_OPTIONS = [
   '🥬','🥦','🍊','🍚','🌰','🫘','🍗','🐟','🐠','🥚',
   '💧','🍵','☕','🍫','🥜','🍿','🍧','🫒','🧂','🍶',
   '🥣','🫛','🍋','🍇','🥝','🍓','🥕','🌽','🧅','🧄',
+  '🍎','🍑','🍐','🍒','🥭','🍍','🍅','🥔','🍠','🍞',
 ];
 
 export default function AddProductView() {
   const t = useTranslations('AddProduct');
   const tCat = useTranslations('Categories');
-  const { addCustomProduct } = useApp();
+  const { addCustomProduct, categories } = useApp();
   const router = useRouter();
 
   const [name, setName] = useState('');
@@ -33,6 +33,13 @@ export default function AddProductView() {
 
   const isFormValid = name.trim().length >= 2 && description.trim().length >= 5;
 
+  const getCatName = (id: string, fallback: string) => {
+    if (typeof tCat.has === 'function' && tCat.has(id)) {
+      return tCat(id);
+    }
+    return fallback || id;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
@@ -40,32 +47,34 @@ export default function AddProductView() {
     setIsSubmitting(true);
     setSubmitError('');
 
-    const tags = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
-
     try {
+      const tags = tagsInput
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
+
       await addCustomProduct({
         name: name.trim(),
         description: description.trim(),
         category,
         emoji,
         tags,
-        lactoseLevel,
         isLactoseFree: true,
+        lactoseLevel,
       });
 
       setIsSuccess(true);
-
       setTimeout(() => {
         router.push('/');
       }, 1500);
-    } catch (err) {
-      setSubmitError((err as Error).message ?? t('errorDefault'));
+    } catch {
+      setSubmitError(t('error'));
+    } finally {
       setIsSubmitting(false);
     }
   };
+
+  const displayCategories = categories.length > 0 ? categories : [{ id: 'personalizzato', label: 'Personalizzato', emoji: '⭐' }];
 
   return (
     <div className="add-view">
@@ -136,9 +145,9 @@ export default function AddProductView() {
                 value={category}
                 onChange={(e) => setCategory(e.target.value as Category)}
               >
-                {CATEGORIES.map((c) => (
+                {displayCategories.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.emoji} {tCat(c.id)}
+                    {c.emoji} {getCatName(c.id, c.label)}
                   </option>
                 ))}
               </select>

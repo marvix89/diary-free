@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
+    const category = searchParams.get('category') || '';
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '25', 10);
 
@@ -28,12 +29,14 @@ export async function GET(request: Request) {
       sql`
         SELECT * FROM products 
         WHERE is_custom = false AND name_enc ILIKE ${queryFilter}
+          AND (${category} = '' OR category = ${category})
         ORDER BY created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `,
       sql`
         SELECT count(*) as total FROM products 
         WHERE is_custom = false AND name_enc ILIKE ${queryFilter}
+          AND (${category} = '' OR category = ${category})
       `
     ]);
 
@@ -41,6 +44,7 @@ export async function GET(request: Request) {
     // li decifriamo e li filtriamo in JS.
     const customRows = await sql`
       SELECT * FROM products WHERE is_custom = true AND user_id = ${session.user.id}
+        AND (${category} = '' OR category = ${category})
     `;
 
     const customProducts: Product[] = (customRows as any[]).map((row) => {

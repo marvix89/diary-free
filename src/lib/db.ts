@@ -25,6 +25,28 @@ export async function ensureSchema(): Promise<void> {
   await sql`DROP TABLE IF EXISTS product_translations`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS categories (
+      id         TEXT        PRIMARY KEY,
+      label      TEXT        NOT NULL,
+      emoji      TEXT        NOT NULL DEFAULT '🏷️',
+      color      TEXT        NOT NULL DEFAULT '#6366f1',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    INSERT INTO categories (id, label, emoji, color) VALUES
+      ('alternative-vegetali', 'Alternative Vegetali', '🥛', '#7c3aed'),
+      ('formaggi', 'Formaggi & Spalmabili', '🧀', '#d97706'),
+      ('yogurt-dessert', 'Yogurt & Dessert', '🫙', '#16a34a'),
+      ('dolci-biscotti', 'Dolci & Biscotti', '🍪', '#be185d'),
+      ('gelati', 'Gelati', '🍦', '#0891b2'),
+      ('piatti-pronti', 'Piatti Pronti', '🍳', '#b45309'),
+      ('personalizzato', 'Personalizzato', '⭐', '#f59e0b')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS users (
       id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
       email         TEXT        NOT NULL UNIQUE,

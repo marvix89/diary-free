@@ -114,9 +114,17 @@ export default function Header() {
                     <span>⚙️</span> {t('account')}
                   </Link>
                   {session.user.isAdmin && (
-                    <Link href="/admin" onClick={() => setIsDropdownOpen(false)}>
-                      <span>📥</span> {t('admin')}
-                    </Link>
+                    <>
+                      <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0' }} />
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', padding: '0.2rem 0.75rem', fontWeight: 700, letterSpacing: '0.05em' }}>AMMINISTRAZIONE</div>
+                      <Link href="/admin?tab=products" onClick={() => setIsDropdownOpen(false)}>
+                        <span>📦</span> Catalogo Prodotti
+                      </Link>
+                      <Link href="/admin?tab=categories" onClick={() => setIsDropdownOpen(false)}>
+                        <span>🏷️</span> Gestione Categorie
+                      </Link>
+                      <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0' }} />
+                    </>
                   )}
 
                   {/* Dropdown language selector */}

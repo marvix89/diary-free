@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "enrich-products": "npx tsx src/scripts/enrich-products.ts",
+    "update-categories": "npx tsx src/scripts/update-categories.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

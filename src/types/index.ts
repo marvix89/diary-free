@@ -1,18 +1,21 @@
 import type { ProductEnrichmentData } from '../lib/product-enrichment';
 
-export type Category =
-  | 'alternative-vegetali'
-  | 'formaggi'
-  | 'yogurt-dessert'
-  | 'dolci-biscotti'
-  | 'gelati'
-  | 'piatti-pronti'
-  | 'personalizzato';
+export type Category = string;
+
+export interface CategoryItem {
+  id: string;
+  label: string;
+  emoji: string;
+  color: string;
+  count?: number;
+}
 
 export interface Product {
   id: string;
   name: string;
   category: Category;
+  categoryLabel?: string;
+  categoryColor?: string;
   description: string;
   emoji: string;
   tags: string[];

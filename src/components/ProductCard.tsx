@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import type { Product } from '@/types';
 import { useApp } from '@/context/AppContext';
-import { CATEGORIES } from '@/data/products';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import ProductDialog from './ProductDialog';
@@ -18,11 +17,11 @@ export default function ProductCard({
   isShowDeleteButton = false,
 }: ProductCardProps) {
   const t = useTranslations('ProductCard');
-  const { toggleFavorite, isFavorite, removeCustomProduct } = useApp();
+  const { toggleFavorite, isFavorite, removeCustomProduct, categories } = useApp();
   const isFav = isFavorite(product.id);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const categoryInfo = CATEGORIES.find((c) => c.id === product.category);
+  const categoryInfo = categories.find((c) => c.id === product.category) || { color: product.categoryColor || '#6366f1' };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();

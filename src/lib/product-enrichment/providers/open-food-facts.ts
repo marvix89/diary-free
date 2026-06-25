@@ -92,6 +92,122 @@ export class OpenFoodFactsProvider implements IProductEnrichmentProvider {
     }
   }
 
+  private getDynamicCategoryStyle(slug: string): { emoji: string; color: string } {
+    if (/carn|salum|prosciutt|mortadell|speck|wrustel|pollo|bovino|maiale/.test(slug)) return { emoji: '🥩', color: '#dc2626' };
+    if (/pesc|tonn|salmon|merluzz|crostace|mollusc|gamber/.test(slug)) return { emoji: '🐟', color: '#0284c7' };
+    if (/past|spaghett|maccheron|tortellin|raviol|gnocch|riso|cereali/.test(slug)) return { emoji: '🍝', color: '#ca8a04' };
+    if (/pan|lievitat|focacc|grissin|cracker|piadin|panin|fette/.test(slug)) return { emoji: '🍞', color: '#d97706' };
+    if (/verd|ortagg|insalat|pomodor|patat|legum|fagiol|lenticch|ceci/.test(slug)) return { emoji: '🥗', color: '#16a34a' };
+    if (/frutt|mel|banan|agrum|succ|marmellat|confettur/.test(slug)) return { emoji: '🍎', color: '#ea580c' };
+    if (/olio|condiment|sals|maiones|ket|senap|dad|spezie|brodo/.test(slug)) return { emoji: '🫒', color: '#65a30d' };
+    if (/snack|patatin|popcorn|salat/.test(slug)) return { emoji: '🥨', color: '#b45309' };
+    if (/bevand|acq|bibit|tè|caffè|infus|birr|vino/.test(slug)) return { emoji: '🥤', color: '#0891b2' };
+    return { emoji: '🏷️', color: '#6366f1' };
+  }
+
+  public categorizeProduct(p: any): { id: string; label: string; emoji: string; color: string } {
+    const tagsArr = Array.isArray(p.categories_tags) ? p.categories_tags : (Array.isArray(p.tags) ? p.tags : []);
+    const tags = tagsArr.join(' ').toLowerCase();
+    const name = [
+      p.product_name_it,
+      p.product_name,
+      p.name_enc,
+      p.name,
+      p.description_enc
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    // 1. Controlla prima i tag ufficiali di OFF
+    if (tags.includes('plant-milks') || tags.includes('plant-based-beverages') || tags.includes('milk-substitutes')) {
+      return { id: 'alternative-vegetali', label: 'Alternative Vegetali', emoji: '🥛', color: '#7c3aed' };
+    }
+    if (tags.includes('cheeses') || tags.includes('cream-cheeses') || tags.includes('plant-cheeses')) {
+      return { id: 'formaggi', label: 'Formaggi & Spalmabili', emoji: '🧀', color: '#d97706' };
+    }
+    if (tags.includes('yogurts') || tags.includes('plant-yogurts') || tags.includes('fermented-milk')) {
+      return { id: 'yogurt-dessert', label: 'Yogurt & Dessert', emoji: '🫙', color: '#16a34a' };
+    }
+    if (tags.includes('ice-creams') || tags.includes('sorbets')) {
+      return { id: 'gelati', label: 'Gelati', emoji: '🍦', color: '#0891b2' };
+    }
+    if (tags.includes('biscuits') || tags.includes('cookies') || tags.includes('cakes') || tags.includes('pastries') || tags.includes('sweet-snacks')) {
+      return { id: 'dolci-biscotti', label: 'Dolci & Biscotti', emoji: '🍪', color: '#be185d' };
+    }
+    if (tags.includes('meats') || tags.includes('cold-cuts') || tags.includes('hams') || tags.includes('sausages')) {
+      return { id: 'salumi-carni', label: 'Salumi & Carni', emoji: '🥓', color: '#dc2626' };
+    }
+    if (tags.includes('breads') || tags.includes('flatbreads') || tags.includes('rusks') || tags.includes('crackers')) {
+      return { id: 'pane-lievitati', label: 'Pane & Lievitati', emoji: '🍞', color: '#d97706' };
+    }
+    if (tags.includes('pastas') || tags.includes('cereals') || tags.includes('rice')) {
+      return { id: 'pasta-cereali', label: 'Pasta & Cereali', emoji: '🍝', color: '#ca8a04' };
+    }
+
+    // 2. Controlla il nome e la descrizione del prodotto
+    if (/gelato|ice cream|sorbetto|cremeria|magnum|cucciolone|stecco|tartufo|granita|cono|sandwich/i.test(name)) {
+      return { id: 'gelati', label: 'Gelati', emoji: '🍦', color: '#0891b2' };
+    }
+    if (/yogurt|kefir|bifidus|budino|dessert|zymil|fermentato|pudding|mousse|merano|sojasun|activia|bella vita/i.test(name)) {
+      return { id: 'yogurt-dessert', label: 'Yogurt & Dessert', emoji: '🫙', color: '#16a34a' };
+    }
+    if (/formaggio|cheese|mozzarella|burro|butter|ricotta|stracchino|crescenza|robiola|spalmabile|sottilette|grattugiato|mascarpone|provola|scamorza|gorgonzola|fiocchi di latte|fettine|fuso|violife|vemondo|philadelphia|stracciatella|burrata|tomino|edam|gouda|emmental|pecorino|grana|parmigiano/i.test(name)) {
+      return { id: 'formaggi', label: 'Formaggi & Spalmabili', emoji: '🧀', color: '#d97706' };
+    }
+    if (/bevanda.*soia|bevanda.*riso|bevanda.*avena|bevanda.*mandorla|bevanda.*cocco|latte.*soia|latte.*riso|latte.*avena|latte.*mandorla|latte.*cocco|soya|soia drink|oat drink|almond drink|rice drink|panna vegetale|cuisine|alpro|valsoia|hipro|accadì|soyadrink|latte/i.test(name)) {
+      return { id: 'alternative-vegetali', label: 'Alternative Vegetali', emoji: '🥛', color: '#7c3aed' };
+    }
+    if (/biscott|frollin|cookie|biscuit|wafer|cake|torta|crostata|muffin|madeleine|cornett|brioche|merenda|cioccolat|cacao|brownie|panettone|pandoro|fette biscottate|dolce/i.test(name)) {
+      return { id: 'dolci-biscotti', label: 'Dolci & Biscotti', emoji: '🍪', color: '#be185d' };
+    }
+    if (/prosciutt|salum|mortadell|pancett|speck|wurstel|wrustel|carn|bresaol|pollo|tacchino|suino|manzo|vitello|salam|cotechino|guanciale|fesa|affettat|bacon/i.test(name)) {
+      return { id: 'salumi-carni', label: 'Salumi & Carni', emoji: '🥓', color: '#dc2626' };
+    }
+    if (/pane|panino|panbauletto|panfette|grissin|cracker|piadin|focacc|lievitat|tarall|baguette|toast|rosetta|schiacciata/i.test(name)) {
+      return { id: 'pane-lievitati', label: 'Pane & Lievitati', emoji: '🍞', color: '#d97706' };
+    }
+    if (/past|spaghett|penn|fusill|maccheron|gnocch|riso|farro|orzo|granola|muesli|cereali|fiocchi/i.test(name)) {
+      return { id: 'pasta-cereali', label: 'Pasta & Cereali', emoji: '🍝', color: '#ca8a04' };
+    }
+    if (/burger|pizza|lasagna|ravioli|tortellini|zuppa|soup|cotoletta|nugget|piatto pronto|meal|risotto/i.test(name)) {
+      return { id: 'piatti-pronti', label: 'Piatti Pronti', emoji: '🍳', color: '#b45309' };
+    }
+    if (/olio|aceto|sals|maiones|ket|senap|pesto|spezi|condiment|ajinomoto|dado|brodo/i.test(name)) {
+      return { id: 'condimenti-salse', label: 'Condimenti & Salse', emoji: '🫒', color: '#65a30d' };
+    }
+    if (/acq|bibit|succ|thè|tè|infus|caffè|birr|vino|drink|bevanda|tisana/i.test(name)) {
+      return { id: 'bevande', label: 'Bevande', emoji: '🥤', color: '#0891b2' };
+    }
+
+    // 3. Categorie dinamiche da OFF o da DB tags
+    if (p.categories) {
+      const parts = p.categories.split(',').map((s: string) => s.trim()).filter(Boolean);
+      const genericWords = ['plant-based', 'alimenti', 'cibi', 'beverages', 'foods', 'prodotti', 'en:'];
+      const candidate = parts.find((part: string) => part.length <= 30 && !genericWords.some(w => part.toLowerCase().includes(w))) || parts[0];
+      
+      if (candidate) {
+        const id = candidate.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        if (id && id.length > 1) {
+          const label = candidate.charAt(0).toUpperCase() + candidate.slice(1);
+          const style = this.getDynamicCategoryStyle(id);
+          return { id, label, emoji: style.emoji, color: style.color };
+        }
+      }
+    }
+
+    // 4. Se ha tag su DB (es. 'en:salty-snacks')
+    const offTag = tagsArr.find((t: any) => typeof t === 'string' && t.startsWith('en:') && !t.includes('lactose'));
+    if (offTag) {
+      const clean = offTag.replace('en:', '').trim();
+      if (clean && clean.length > 2) {
+        const id = clean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const label = clean.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        const style = this.getDynamicCategoryStyle(id);
+        return { id, label, emoji: style.emoji, color: style.color };
+      }
+    }
+
+    return { id: 'personalizzato', label: 'Personalizzato', emoji: '⭐', color: '#f59e0b' };
+  }
+
   async searchProducts(query: string, locale: string, page: number = 1, pageSize: number = 25): Promise<PaginatedResult<Product>> {
     try {
       const url = new URL('https://world.openfoodfacts.org/cgi/search.pl');
@@ -129,6 +245,8 @@ export class OpenFoodFactsProvider implements IProductEnrichmentProvider {
         'ingredients_text',
         'ingredients_text_it',
         'labels_tags',
+        'categories',
+        'categories_tags',
         'quantity'
       ].join(',');
       url.searchParams.append('fields', fields);
@@ -156,13 +274,16 @@ export class OpenFoodFactsProvider implements IProductEnrichmentProvider {
         // Usa i campi localizzati se disponibili, altrimenti fallback ai generici
         const name = p.product_name_it || p.product_name || p.brands || 'Prodotto Sconosciuto';
         const description = p.ingredients_text_it || p.ingredients_text || '';
+        const catInfo = this.categorizeProduct(p);
 
         return {
           id: p.code,
           name: name,
           description: description,
-          category: 'personalizzato' as Category, // OFF doesn't map 1:1 to our categories, default to 'personalizzato'
-          emoji: '🛒',
+          category: catInfo.id,
+          categoryLabel: catInfo.label,
+          categoryColor: catInfo.color,
+          emoji: catInfo.emoji,
           tags: p.labels_tags || [],
           isLactoseFree: isLactoseFree,
           lactoseLevel: isLactoseFree ? 'none' : (hasMilk ? 'low' : 'trace'),

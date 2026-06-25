@@ -54,7 +54,20 @@ export async function POST(request: Request) {
     // Cancellazione vecchi seed statici (i loro id erano p1, p2... p27)
     await sql`DELETE FROM products WHERE id LIKE 'p%' AND length(id) <= 3`;
 
-    const queries = rowsToInsert.map(r => sql`
+    const uniqueCategoriesMap = new Map();
+    for (const p of offResults.products) {
+      if (!uniqueCategoriesMap.has(p.category)) {
+        uniqueCategoriesMap.set(p.category, p);
+      }
+    }
+
+    const categoryQueries = Array.from(uniqueCategoriesMap.values()).map(p => sql`
+      INSERT INTO categories (id, label, emoji, color)
+      VALUES (${p.category}, ${p.categoryLabel || p.category}, ${p.emoji}, ${p.categoryColor || '#6366f1'})
+      ON CONFLICT (id) DO NOTHING
+    `);
+
+    const productQueries = rowsToInsert.map(r => sql`
       INSERT INTO products (
         id, name_enc, description_enc, category, emoji, tags,
         lactose_level, is_lactose_free, is_custom, user_id,
@@ -66,10 +79,26 @@ export async function POST(request: Request) {
         ${r.image_url}, ${r.image_thumbnail_url}, ${r.nutriscore}, ${r.nova_group},
         ${r.ecoscore}, ${r.allergens}, ${r.ingredients_text}, ${r.brand}, ${r.quantity}
       )
-      ON CONFLICT (id) DO NOTHING
+      ON CONFLICT (id) DO UPDATE SET
+        name_enc = EXCLUDED.name_enc,
+        description_enc = EXCLUDED.description_enc,
+        category = EXCLUDED.category,
+        emoji = EXCLUDED.emoji,
+        tags = EXCLUDED.tags,
+        lactose_level = EXCLUDED.lactose_level,
+        is_lactose_free = EXCLUDED.is_lactose_free,
+        image_url = EXCLUDED.image_url,
+        image_thumbnail_url = EXCLUDED.image_thumbnail_url,
+        nutriscore = EXCLUDED.nutriscore,
+        nova_group = EXCLUDED.nova_group,
+        ecoscore = EXCLUDED.ecoscore,
+        allergens = EXCLUDED.allergens,
+        ingredients_text = EXCLUDED.ingredients_text,
+        brand = EXCLUDED.brand,
+        quantity = EXCLUDED.quantity
     `);
 
-    await sql.transaction(queries);
+    await sql.transaction([...categoryQueries, ...productQueries]);
 
     return Response.json({ 
       success: true, 

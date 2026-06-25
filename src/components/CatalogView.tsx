@@ -1,7 +1,6 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
-import { CATEGORIES } from '@/data/products';
 import ProductCard from './ProductCard';
 import { useTranslations } from 'next-intl';
 
@@ -11,6 +10,7 @@ export default function CatalogView() {
   const {
     products,
     allProducts,
+    categories,
     searchQuery,
     selectedCategory,
     isLoading,
@@ -44,6 +44,13 @@ export default function CatalogView() {
       </div>
     );
   }
+
+  const getCatName = (id: string, fallback: string) => {
+    if (typeof tCat.has === 'function' && tCat.has(id)) {
+      return tCat(id);
+    }
+    return fallback || id;
+  };
 
   return (
     <div>
@@ -85,7 +92,7 @@ export default function CatalogView() {
           >
             {t('filterAll')}
           </button>
-          {CATEGORIES.map((cat) => (
+          {categories.filter(c => Number(c.count) > 0).map((cat) => (
             <button
               key={cat.id}
               id={`filter-${cat.id}`}
@@ -98,7 +105,7 @@ export default function CatalogView() {
               }
               aria-selected={selectedCategory === cat.id}
             >
-              {cat.emoji} {tCat(cat.id)}
+              {cat.emoji} {getCatName(cat.id, cat.label)}
             </button>
           ))}
         </div>
@@ -108,7 +115,10 @@ export default function CatalogView() {
       <div className="section-header">
         <h1 className="section-title">
           {selectedCategory
-            ? tCat(selectedCategory as string)
+            ? (() => {
+                const c = categories.find(cat => cat.id === selectedCategory);
+                return c ? getCatName(c.id, c.label) : selectedCategory;
+              })()
             : t('title')}
         </h1>
         <span className="section-count">

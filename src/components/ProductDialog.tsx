@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Product } from '@/types';
-import { CATEGORIES } from '@/data/products';
+import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 
@@ -17,8 +17,9 @@ export default function ProductDialog({ product, onClose }: ProductDialogProps) 
   const t = useTranslations('ProductDialog');
   const tCard = useTranslations('ProductCard');
   const tCat = useTranslations('Categories');
+  const { categories } = useApp();
 
-  const categoryInfo = CATEGORIES.find((c) => c.id === product.category);
+  const categoryInfo = categories.find((c) => c.id === product.category) || { color: product.categoryColor || '#6366f1', label: product.categoryLabel || product.category };
   const enrichment = product.enrichment;
 
   useEffect(() => {
@@ -106,7 +107,7 @@ export default function ProductDialog({ product, onClose }: ProductDialogProps) 
           </div>
           <div className="product-modal-title-wrap">
             <span className="product-modal-category">
-              {categoryInfo ? (tCat.has(product.category) ? tCat(product.category as any) : categoryInfo.label) : product.category}
+              {categoryInfo ? (typeof tCat.has === 'function' && tCat.has(product.category) ? tCat(product.category as any) : categoryInfo.label) : product.category}
             </span>
             <h2 id="modal-title" className="product-modal-name">{product.name}</h2>
             {enrichment?.brand && (
