@@ -14,6 +14,7 @@ export default function CatalogView() {
     selectedCategory,
     isLoading,
     error,
+    setSearchQuery,
     setSelectedCategory,
     page,
     pageSize,
