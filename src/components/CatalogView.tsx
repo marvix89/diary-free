@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import ProductCard from './ProductCard';
 import { useTranslations } from 'next-intl';
@@ -22,6 +23,19 @@ export default function CatalogView() {
     totalCount,
     setPage,
   } = useApp();
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return (
@@ -52,77 +66,108 @@ export default function CatalogView() {
     return fallback || id;
   };
 
+  const activeCatObj = selectedCategory ? categories.find(c => c.id === selectedCategory) : null;
+  const activeCatLabel = activeCatObj ? getCatName(activeCatObj.id, activeCatObj.label) : null;
+
   return (
     <div>
-      {/* Search & Filters */}
+      {/* Search & Toolbar Unificata Integrata (Proposta A) */}
       <section className="search-section" aria-label={t('filterLabel')}>
-        <div className="search-box">
-          <span className="search-icon">🔍</span>
-          <input
-            id="catalog-search"
-            className="search-input"
-            type="search"
-            placeholder={t('searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label={t('searchLabel')}
-          />
-          {searchQuery && (
-            <button
-              className="search-clear"
-              onClick={() => setSearchQuery('')}
-              aria-label={t('clearSearch')}
-            >
-              ✕
-            </button>
-          )}
-        </div>
+        <div className="search-toolbar">
+          <div className="search-toolbar-left">
+            <span className="search-icon">🔍</span>
+            
+            {/* Badge categoria attiva integrato nella barra di ricerca */}
+            {activeCatObj && (
+              <span className="active-cat-badge">
+                <span>{activeCatObj.emoji}</span>
+                <span>{activeCatLabel}</span>
+                <button
+                  type="button"
+                  className="active-cat-remove"
+                  onClick={() => setSelectedCategory(null)}
+                  title="Rimuovi filtro categoria"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
 
-        <div
-          className="category-filters"
-          role="tablist"
-          aria-label={t('filterLabel')}
-        >
-          <button
-            id="filter-all"
-            role="tab"
-            className={`cat-chip ${!selectedCategory ? 'active' : ''}`}
-            onClick={() => setSelectedCategory(null)}
-            aria-selected={!selectedCategory}
-          >
-            {t('filterAll')}
-          </button>
-          {categories.filter(c => Number(c.count) > 0).map((cat) => (
+            <input
+              id="catalog-search"
+              className="search-input"
+              type="search"
+              placeholder={activeCatObj ? `Cerca tra ${activeCatLabel}...` : t('searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label={t('searchLabel')}
+            />
+
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear"
+                onClick={() => setSearchQuery('')}
+                aria-label={t('clearSearch')}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="toolbar-separator" />
+
+          {/* Selettore Categoria a Tendina Compatto */}
+          <div className="cat-dropdown-container" ref={menuRef}>
             <button
-              key={cat.id}
-              id={`filter-${cat.id}`}
-              role="tab"
-              className={`cat-chip ${selectedCategory === cat.id ? 'active' : ''}`}
-              onClick={() =>
-                setSelectedCategory(
-                  selectedCategory === cat.id ? null : cat.id
-                )
-              }
-              aria-selected={selectedCategory === cat.id}
+              type="button"
+              className={`cat-dropdown-btn ${selectedCategory ? 'has-filter' : ''}`}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-expanded={isMenuOpen}
+              title="Filtra per categoria"
             >
-              {cat.emoji} {getCatName(cat.id, cat.label)}
+              <span>{activeCatObj ? activeCatObj.emoji : '🏷️'}</span>
+              <span className="dropdown-label-text">
+                {activeCatObj ? activeCatLabel : t('filterAll')}
+              </span>
+              <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>▾</span>
             </button>
-          ))}
+
+            {isMenuOpen && (
+              <div className="cat-dropdown-menu" role="menu">
+                <button
+                  type="button"
+                  className={`cat-dropdown-item ${!selectedCategory ? 'active' : ''}`}
+                  onClick={() => { setSelectedCategory(null); setIsMenuOpen(false); }}
+                >
+                  <span>🌐 {t('filterAll')}</span>
+                  <span className="cat-dropdown-count">{allProducts.length || totalCount}</span>
+                </button>
+
+                {categories.filter(c => Number(c.count) > 0).map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    className={`cat-dropdown-item ${selectedCategory === cat.id ? 'active' : ''}`}
+                    onClick={() => { setSelectedCategory(cat.id); setIsMenuOpen(false); }}
+                  >
+                    <span>{cat.emoji} {getCatName(cat.id, cat.label)}</span>
+                    <span className="cat-dropdown-count">{cat.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
       {/* Results header */}
       <div className="section-header">
         <h1 className="section-title">
-          {selectedCategory
-            ? (() => {
-                const c = categories.find(cat => cat.id === selectedCategory);
-                return c ? getCatName(c.id, c.label) : selectedCategory;
-              })()
-            : t('title')}
+          {selectedCategory && activeCatLabel ? activeCatLabel : t('title')}
         </h1>
         <span className="section-count">
-          {products.length} / {totalCount} {t('title')}
+          {products.length} / {allProducts.length || totalCount} {t('title')}
         </span>
       </div>
 
