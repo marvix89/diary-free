@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import type { Product } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { CATEGORIES } from '@/data/products';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import ProductDialog from './ProductDialog';
 
 interface ProductCardProps {
   product: Product;
@@ -18,14 +20,17 @@ export default function ProductCard({
   const t = useTranslations('ProductCard');
   const { toggleFavorite, isFavorite, removeCustomProduct } = useApp();
   const isFav = isFavorite(product.id);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const categoryInfo = CATEGORIES.find((c) => c.id === product.category);
 
-  const handleFavoriteClick = () => {
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     toggleFavorite(product.id);
   };
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (confirm(t('removeConfirm', { name: product.name }))) {
       removeCustomProduct(product.id);
     }
@@ -40,7 +45,12 @@ export default function ProductCard({
   };
 
   return (
-    <article className="product-card" id={`product-${product.id}`}>
+    <article
+      className="product-card"
+      id={`product-${product.id}`}
+      onClick={() => setIsDialogOpen(true)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="product-card-header">
         <div
           className="product-emoji-wrap"
@@ -109,14 +119,6 @@ export default function ProductCard({
         </div>
       </div>
 
-      <div className="product-tags">
-        {product.tags.map((tag) => (
-          <span key={tag} className="product-tag">
-            {tag}
-          </span>
-        ))}
-      </div>
-
       <div className="product-footer">
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <span className={`lactose-badge ${product.lactoseLevel ?? 'none'}`}>
@@ -133,6 +135,10 @@ export default function ProductCard({
           <span className="custom-badge">{t('customBadge')}</span>
         )}
       </div>
+
+      {isDialogOpen && (
+        <ProductDialog product={product} onClose={() => setIsDialogOpen(false)} />
+      )}
     </article>
   );
 }

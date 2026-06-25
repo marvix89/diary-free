@@ -159,7 +159,7 @@
     "personalizzato": "Custom"
   },
   "ProductCard": {
-    "lactoseNone": "✓ 0% Lactose",
+    "lactoseNone": "✓ Lactose Free",
     "lactoseTrace": "⚠ Traces",
     "lactoseLow": "~ Low",
     "customBadge": "⭐ Custom",
@@ -167,5 +167,25 @@
     "removeFavorite": "Remove from favorites",
     "removeProduct": "Remove product",
     "removeConfirm": "Remove \"{name}\" from the list?"
+  },
+  "ProductDialog": {
+    "close": "Close",
+    "description": "Description",
+    "ingredients": "Ingredients",
+    "nutrition": "Nutrition Facts (per 100g)",
+    "allergens": "Allergens",
+    "labels": "Labels / Certifications",
+    "lactoseEstimated": "Estimated lactose (per 100g)",
+    "category": "Category",
+    "brand": "Brand",
+    "quantity": "Quantity",
+    "kcal": "Calories",
+    "proteins": "Proteins",
+    "fat": "Fat",
+    "carbs": "Carbs",
+    "sugars": "of which sugars",
+    "nutriScore": "Nutri-Score",
+    "novaGroup": "NOVA Group",
+    "ecoScore": "Eco-Score"
   }
 }
