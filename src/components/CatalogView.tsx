@@ -3,6 +3,7 @@
 import { useApp } from '@/context/AppContext';
 import ProductCard from './ProductCard';
 import { useTranslations } from 'next-intl';
+import { useRef } from 'react';
 
 export default function CatalogView() {
   const t = useTranslations('Catalog');
@@ -22,7 +23,11 @@ export default function CatalogView() {
     setPage,
   } = useApp();
 
-  if (isLoading) {
+  const gridRef = useRef<HTMLDivElement>(null);
+
+
+  // Loading iniziale: nessun prodotto ancora caricato
+  if (isLoading && allProducts.length === 0) {
     return (
       <div className="loading-state">
         <div className="loading-spinner" />
@@ -56,6 +61,10 @@ export default function CatalogView() {
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
   const renderPaginationControls = (position: 'top' | 'bottom') => {
     if (totalPages <= 1) return null;
 
@@ -66,8 +75,8 @@ export default function CatalogView() {
       >
         <button
           type="button"
-          onClick={() => setPage(Math.max(1, page - 1))}
-          disabled={page === 1}
+          onClick={() => handlePageChange(Math.max(1, page - 1))}
+          disabled={page === 1 || isLoading}
           className="pagination-btn"
           aria-label="Pagina precedente"
         >
@@ -84,8 +93,8 @@ export default function CatalogView() {
 
         <button
           type="button"
-          onClick={() => setPage(Math.min(totalPages, page + 1))}
-          disabled={page >= totalPages}
+          onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+          disabled={page >= totalPages || isLoading}
           className="pagination-btn"
           aria-label="Pagina successiva"
         >
@@ -111,34 +120,42 @@ export default function CatalogView() {
         {products.length > 0 && renderPaginationControls('top')}
       </div>
 
-      {/* Grid */}
-      {products.length > 0 ? (
-        <>
-          <div className="products-grid" role="list" aria-label={t('title')}>
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+      {/* Grid — ref per lo scroll selettivo */}
+      <div ref={gridRef} className={`catalog-grid-wrapper${isLoading ? ' is-loading' : ''}`}>
+        {products.length > 0 ? (
+          <>
+            {/* Overlay di caricamento paginazione */}
+            {isLoading && (
+              <div className="grid-loading-overlay" aria-hidden="true">
+                <div className="loading-spinner small" />
+              </div>
+            )}
 
-          {/* Pagination Controls */}
-          {renderPaginationControls('bottom')}
-        </>
-      ) : (
-        <div className="empty-state" role="status">
-          <span className="empty-icon">🔎</span>
-          <p className="empty-title">{t('noResultsTitle')}</p>
-          <p className="empty-desc">{t('noResultsDesc')}</p>
-          <button
-            className="empty-cta"
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedCategory(null);
-            }}
-          >
-            {t('resetFilters')}
-          </button>
-        </div>
-      )}
+            <div className="products-grid" role="list" aria-label={t('title')}>
+              {products.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+
+            {renderPaginationControls('bottom')}
+          </>
+        ) : !isLoading ? (
+          <div className="empty-state" role="status">
+            <span className="empty-icon">🔎</span>
+            <p className="empty-title">{t('noResultsTitle')}</p>
+            <p className="empty-desc">{t('noResultsDesc')}</p>
+            <button
+              className="empty-cta"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory(null);
+              }}
+            >
+              {t('resetFilters')}
+            </button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

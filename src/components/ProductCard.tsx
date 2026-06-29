@@ -5,7 +5,10 @@ import type { Product } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { useSession } from 'next-auth/react';
+import { getValidImageUrl } from '@/lib/image-utils';
 import ProductDialog from './ProductDialog';
+import CategoryIcon from './CategoryIcon';
 
 interface ProductCardProps {
   product: Product;
@@ -20,6 +23,7 @@ export default function ProductCard({
   const { toggleFavorite, isFavorite, removeCustomProduct } = useApp();
   const isFav = isFavorite(product.id);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -33,6 +37,12 @@ export default function ProductCard({
     }
   };
 
+  const { data: session } = useSession();
+  const isAdmin = !!session?.user?.isAdmin;
+
+  const validImgUrl = getValidImageUrl(product.enrichment?.imageUrl);
+  const hasImage = !!validImgUrl;
+
   return (
     <article
       className="product-card"
@@ -40,24 +50,80 @@ export default function ProductCard({
       onClick={() => setIsDialogOpen(true)}
       style={{ cursor: 'pointer' }}
     >
-      <div className="product-card-header">
-        <div className="product-emoji-wrap">
-          {product.emoji}
+      {/* Pannello sinistro: immagine a tutta altezza o icona categoria */}
+      <div className="product-card-media">
+        {hasImage ? (
+          <>
+            {/* Skeleton shimmer visibile finché l'immagine non è pronta */}
+            {!imgLoaded && <div className="product-img-skeleton" aria-hidden="true" />}
+            <Image
+              src={validImgUrl!}
+              alt={product.name}
+              fill
+              className={`product-thumb${imgLoaded ? ' is-loaded' : ''}`}
+              onLoad={() => setImgLoaded(true)}
+              loading="lazy"
+            />
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', position: 'relative' }}>
+            <CategoryIcon
+              category={product.category}
+              size={30}
+              className="product-cat-icon"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Contenuto destro */}
+      <div className="product-card-content">
+        <div className="product-title-group">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <h3 className="product-name" title={product.name} style={{ margin: 0 }}>{product.name}</h3>
+            {!hasImage && isAdmin && (
+              <span style={{
+                background: '#fee2e2',
+                color: '#b91c1c',
+                border: '1px solid #f87171',
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: '9999px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                lineHeight: 1
+              }} title={t('missingImageAdmin')}>
+                ⚠️ Manca Blob
+              </span>
+            )}
+          </div>
+          {product.enrichment?.brand && (
+            <p className="product-brand" title={product.enrichment.brand}>{product.enrichment.brand}</p>
+          )}
         </div>
+
+        {/* Azioni */}
         <div className="product-card-actions">
           {isShowDeleteButton && product.isCustom && (
             <button
-              className="delete-btn"
+              className="icon-btn delete-btn"
               onClick={handleDeleteClick}
               title={t('removeProduct')}
               aria-label={`${t('removeProduct')}: ${product.name}`}
             >
-              🗑️
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6" stroke="currentColor" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" />
+                <path d="M10 11v6M14 11v6" stroke="currentColor" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" />
+              </svg>
             </button>
           )}
           <button
             id={`fav-btn-${product.id}`}
-            className={`fav-btn ${isFav ? 'is-active' : ''}`}
+            className={`icon-btn fav-btn ${isFav ? 'is-active' : ''}`}
             onClick={handleFavoriteClick}
             title={isFav ? t('removeFavorite') : t('addFavorite')}
             aria-label={
@@ -67,37 +133,16 @@ export default function ProductCard({
             }
             aria-pressed={isFav}
           >
-            {isFav ? '❤️' : '🤍'}
+            {isFav ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" />
+              </svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" stroke="currentColor" />
+              </svg>
+            )}
           </button>
-        </div>
-      </div>
-
-      <div className="product-title-group">
-        <h3 className="product-name">{product.name}</h3>
-        {product.enrichment?.brand && (
-          <p className="product-brand">{product.enrichment.brand}</p>
-        )}
-      </div>
-
-      <div className="product-body">
-        {product.enrichment?.imageThumbnailUrl && (
-          <div className="product-image-container">
-            <Image
-              src={product.enrichment.imageThumbnailUrl}
-              alt={product.name}
-              width={90}
-              height={90}
-              className="product-thumbnail-large"
-              unoptimized
-            />
-          </div>
-        )}
-        <div className="product-text">
-          <p className="product-description">
-            {product.description?.length > 130
-              ? `${product.description.slice(0, 130)}...`
-              : product.description}
-          </p>
         </div>
       </div>
 

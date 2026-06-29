@@ -459,8 +459,8 @@ export default function AdminDashboardClient() {
                   {results.map(p => (
                     <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '0.75rem' }}>
-                        {p.enrichment?.imageThumbnailUrl ? (
-                          <img src={p.enrichment.imageThumbnailUrl} alt="" style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px' }} />
+                        {(p.enrichment?.imageThumbnailUrl || p.enrichment?.imageUrl) ? (
+                          <img src={p.enrichment.imageThumbnailUrl || p.enrichment.imageUrl} alt="" style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px' }} />
                         ) : (
                           <div style={{ width: '42px', height: '42px', background: 'var(--bg)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
                             {p.emoji || '🛒'}

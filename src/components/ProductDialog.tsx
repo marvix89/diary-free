@@ -6,6 +6,8 @@ import type { Product } from '@/types';
 import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { useSession } from 'next-auth/react';
+import { getValidImageUrl } from '@/lib/image-utils';
 
 interface ProductDialogProps {
   product: Product;
@@ -21,6 +23,8 @@ export default function ProductDialog({ product, onClose }: ProductDialogProps) 
 
   const categoryInfo = categories.find((c) => c.id === product.category) || { color: product.categoryColor || '#6366f1', label: product.categoryLabel || product.category };
   const enrichment = product.enrichment;
+  const { data: session } = useSession();
+  const isAdmin = !!session?.user?.isAdmin;
 
   useEffect(() => {
     setMounted(true);
@@ -85,7 +89,7 @@ export default function ProductDialog({ product, onClose }: ProductDialogProps) 
     return clean.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
-  const largeImg = enrichment?.imageUrl || enrichment?.imageThumbnailUrl;
+  const largeImg = getValidImageUrl(enrichment?.imageUrl);
 
   if (!mounted || typeof document === 'undefined') return null;
 
@@ -142,7 +146,7 @@ export default function ProductDialog({ product, onClose }: ProductDialogProps) 
           </div>
 
           <div className="product-modal-grid">
-            {largeImg && (
+            {largeImg ? (
               <div className="product-modal-img-wrap">
                 <Image
                   src={largeImg}
@@ -153,7 +157,13 @@ export default function ProductDialog({ product, onClose }: ProductDialogProps) 
                   unoptimized
                 />
               </div>
-            )}
+            ) : isAdmin ? (
+              <div className="product-modal-img-wrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#fef2f2', border: '2px dashed #f87171', borderRadius: '1rem', padding: '1rem', textAlign: 'center', color: '#991b1b' }}>
+                <span style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</span>
+                <strong style={{ fontSize: '0.85rem', marginBottom: '0.25rem' }}>Immagine Assente</strong>
+                <span style={{ fontSize: '0.75rem', color: '#b91c1c' }}>Popolabile tramite importazione o sincronizzazione nel pannello admin.</span>
+              </div>
+            ) : null}
 
             <div className="product-modal-details">
               <div className="detail-section">

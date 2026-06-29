@@ -8,10 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "enrich-products": "npx tsx src/scripts/enrich-products.ts",
-    "update-categories": "npx tsx src/scripts/update-categories.ts"
+    "update-categories": "npx tsx src/scripts/update-categories.ts",
+    "migrate-images": "npx tsx src/scripts/migrate-images.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "@vercel/blob": "^2.5.0",
     "bcryptjs": "^3.0.3",
     "flag-icons": "^7.5.0",
     "next": "^16.2.9",

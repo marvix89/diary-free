@@ -170,7 +170,8 @@
     "addFavorite": "Aggiungi ai preferiti",
     "removeFavorite": "Rimuovi dai preferiti",
     "removeProduct": "Rimuovi prodotto",
-    "removeConfirm": "Rimuovere \"{name}\" dalla lista?"
+    "removeConfirm": "Rimuovere \"{name}\" dalla lista?",
+    "missingImageAdmin": "⚠️ Manca Immagine Blob (Popola da Admin)"
   },
   "ProductDialog": {
     "close": "Chiudi",

@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { ensureSchema, getDb } from '@/lib/db';
 import { OpenFoodFactsProvider } from '@/lib/product-enrichment/providers/open-food-facts';
+import { put } from '@vercel/blob';
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -24,6 +25,33 @@ export async function POST(request: Request) {
 
     await ensureSchema();
     const sql = getDb();
+
+    // Carichiamo le immagini su Vercel Blob Storage prima di salvare nel DB
+    for (const p of offResults.products) {
+      const img = p.enrichment?.imageUrl || p.enrichment?.imageThumbnailUrl;
+      if (img && typeof img === 'string' && img.includes('openfoodfacts.org')) {
+        try {
+          const res = await fetch(img, {
+            headers: { 'User-Agent': 'diary-free/1.0 (admin-auto-import)' }
+          });
+          if (res.ok) {
+            const contentType = res.headers.get('content-type') || 'image/jpeg';
+            const buffer = Buffer.from(await res.arrayBuffer());
+            const ext = contentType.includes('png') ? 'png' : 'jpg';
+            const blob = await put(`products/${p.id}/image.${ext}`, buffer, {
+              access: 'public',
+              contentType,
+            });
+            if (p.enrichment) {
+              p.enrichment.imageUrl = blob.url;
+              p.enrichment.imageThumbnailUrl = blob.url;
+            }
+          }
+        } catch (errBlob) {
+          console.error(`Errore salvataggio Blob per ${p.id}:`, errBlob);
+        }
+      }
+    }
 
     // Inserimento batch tramite postgres.js
     // Mappiamo i prodotti per l'insert

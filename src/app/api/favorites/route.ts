@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { safeDecrypt } from '@/lib/crypto';
 import { ensureSchema, getDb } from '@/lib/db';
 import type { Product } from '@/types';
+import { getValidImageUrl } from '@/lib/image-utils';
 
 export async function GET() {
   const session = await auth();
@@ -35,8 +36,8 @@ export async function GET() {
           lactoseLevel: row.lactose_level as Product['lactoseLevel'],
           isCustom: true,
           enrichment: (row.image_url || row.image_thumbnail_url) ? {
-            imageUrl: row.image_url as string,
-            imageThumbnailUrl: row.image_thumbnail_url as string,
+            imageUrl: getValidImageUrl((row.image_url || row.image_thumbnail_url) as string) ?? undefined,
+            imageThumbnailUrl: getValidImageUrl(row.image_thumbnail_url as string) ?? undefined,
           } : undefined,
         };
       } else {
@@ -53,8 +54,8 @@ export async function GET() {
           enrichment: {
             brand: row.brand as string,
             quantity: row.quantity as string,
-            imageUrl: row.image_url as string,
-            imageThumbnailUrl: row.image_thumbnail_url as string,
+            imageUrl: getValidImageUrl((row.image_url || row.image_thumbnail_url) as string) ?? undefined,
+            imageThumbnailUrl: getValidImageUrl(row.image_thumbnail_url as string) ?? undefined,
             ingredientsText: row.ingredients_text as string,
             nutriScore: row.nutriscore as any,
             novaGroup: row.nova_group as 1 | 2 | 3 | 4 | undefined,

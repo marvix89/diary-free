@@ -2,8 +2,8 @@ import { auth } from '@/lib/auth';
 import { encrypt, safeDecrypt } from '@/lib/crypto';
 import { ensureSchema, getDb } from '@/lib/db';
 import type { Product } from '@/types';
-import { cookies } from 'next/headers';
 import { OpenFoodFactsProvider } from '@/lib/product-enrichment/providers/open-food-facts';
+import { getValidImageUrl } from '@/lib/image-utils';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -61,8 +61,7 @@ export async function GET(request: Request) {
         lactoseLevel: row.lactose_level as Product['lactoseLevel'],
         isCustom: true,
         enrichment: (row.image_url || row.image_thumbnail_url) ? {
-          imageUrl: row.image_url as string,
-          imageThumbnailUrl: row.image_thumbnail_url as string,
+          imageUrl: getValidImageUrl((row.image_url || row.image_thumbnail_url) as string) ?? undefined,
         } : undefined,
       };
     }).filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.description.toLowerCase().includes(q.toLowerCase()));
@@ -80,8 +79,7 @@ export async function GET(request: Request) {
       enrichment: {
         brand: row.brand as string,
         quantity: row.quantity as string,
-        imageUrl: row.image_url as string,
-        imageThumbnailUrl: row.image_thumbnail_url as string,
+        imageUrl: getValidImageUrl((row.image_url || row.image_thumbnail_url) as string) ?? undefined,
         ingredientsText: row.ingredients_text as string,
         nutriScore: row.nutriscore as any,
         novaGroup: row.nova_group as 1 | 2 | 3 | 4 | undefined,
@@ -91,8 +89,12 @@ export async function GET(request: Request) {
       }
     }));
 
-    // Se siamo alla prima pagina mostriamo i custom in cima, altrimenti solo i pubblici
-    const combinedProducts = page === 1 ? [...customProducts, ...publicProducts] : publicProducts;
+    // Alla pagina 1 i custom sono in cima: tronchiamo i pubblici per non superare il limit
+    const publicSlice = page === 1
+      ? publicProducts.slice(0, Math.max(0, limit - customProducts.length))
+      : publicProducts;
+
+    const combinedProducts = page === 1 ? [...customProducts, ...publicSlice] : publicProducts;
     const totalCount = parseInt((countRows as any[])[0].total) + customProducts.length;
 
     return Response.json({
