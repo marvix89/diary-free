@@ -1,21 +1,38 @@
 import { auth } from '@/lib/auth';
 import { getDb } from '@/lib/db';
+import { unstable_cache } from 'next/cache';
 
 /**
  * GET /api/images/[id]
  *
- * Proxy sicuro per servire immagini prodotto direttamente dal Vercel Blob privato.
- * Usa blob_pathname + BLOB_READ_WRITE_TOKEN per autenticarsi al Blob Storage.
+ * Proxy sicuro per servire immagini prodotto dal Vercel Blob privato.
  *
- * Flusso:
- *   1. Verifica autenticazione utente
- *   2. Legge blob_pathname da Postgres
- *   3. Costruisce l'URL Blob usando BLOB_STORE_ID + blob_pathname
- *   4. Scarica il file dal Blob con token di autenticazione
- *   5. Streamma il binario al client con header di caching
+ * Strategia di caching (risparmio Simple Operations Vercel Blob):
+ *   - `unstable_cache` di Next.js: persiste il blob_pathname tra invocazioni serverless.
+ *     Revalidazione automatica ogni 24h. Tag `product-image-{id}` per invalidazione selettiva.
+ *   - Cache-Control browser: 24h + stale-while-revalidate 7 giorni.
+ *   - ETag + 304 Not Modified: nessun byte trasferito se l'immagine non è cambiata.
  */
+
+// Cache del blob_pathname per prodotto (evita la query DB per ogni richiesta immagine).
+// unstable_cache è il Data Cache di Next.js: persiste tra invocazioni serverless su Vercel.
+const getCachedBlobPathname = unstable_cache(
+  async (productId: string): Promise<string | null> => {
+    const sql = getDb();
+    const [row] = await sql`
+      SELECT blob_pathname FROM products WHERE id = ${productId}
+    ` as { blob_pathname: string | null }[];
+    return row?.blob_pathname ?? null;
+  },
+  ['product-blob-pathname'],
+  {
+    revalidate: 86400, // 24 ore
+    tags: ['product-images'],
+  }
+);
+
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -25,57 +42,57 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const sql = getDb();
 
-    // Legge solo blob_pathname — unica fonte di verità per le immagini
-    const [row] = await sql`
-      SELECT blob_pathname FROM products WHERE id = ${id}
-    ` as { blob_pathname: string | null }[];
+    // ─── 1. Legge blob_pathname (dalla cache Next.js o dal DB) ───────
+    const blobPathname = await getCachedBlobPathname(id);
 
-    if (!row) {
-      return new Response('Prodotto non trovato', { status: 404 });
-    }
-
-    if (!row.blob_pathname) {
+    if (!blobPathname) {
       return new Response('Nessuna immagine disponibile', { status: 404 });
     }
 
-    // Costruisce l'URL del Blob privato:
-    // BLOB_STORE_ID = "store_7okYZKYqUlBbsKlg" → storeId = "7okYZKYqUlBbsKlg"
-    // URL = https://<storeId>.blob.vercel-storage.com/<blob_pathname>
+    // ─── 2. ETag basato sul pathname — supporta HTTP 304 ────────────
+    const etag = `"${Buffer.from(blobPathname).toString('base64url').slice(0, 16)}"`;
+    if (request.headers.get('if-none-match') === etag) {
+      return new Response(null, { status: 304 });
+    }
+
+    // ─── 3. Costruisce URL Blob e scarica ───────────────────────────
     const storeId = (process.env.BLOB_STORE_ID ?? '').replace('store_', '');
     if (!storeId) {
       console.error('BLOB_STORE_ID non configurato');
       return new Response('Configurazione Blob mancante', { status: 500 });
     }
 
-    const blobUrl = `https://${storeId}.blob.vercel-storage.com/${row.blob_pathname}`;
+    const blobUrl = `https://${storeId}.blob.vercel-storage.com/${blobPathname}`;
     const token = process.env.BLOB_READ_WRITE_TOKEN;
 
-    // Scarica il file dal Blob con autenticazione token
     const blobRes = await fetch(blobUrl, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'User-Agent': 'diary-free/1.0 (image-proxy)',
       },
+      // Next.js cache anche la risposta del fetch (separato dall'unstable_cache sopra)
+      next: { revalidate: 86400 },
     });
 
     if (!blobRes.ok) {
-      console.error(`Image proxy: Blob fetch failed for product ${id} (${blobRes.status}) — pathname: ${row.blob_pathname}`);
+      console.error(
+        `Image proxy: Blob fetch failed for product ${id} (${blobRes.status}) — pathname: ${blobPathname}`
+      );
       return new Response('Immagine non disponibile', { status: 502 });
     }
 
     const contentType = blobRes.headers.get('content-type') || 'image/jpeg';
-    const body = await blobRes.arrayBuffer();
+    const data = await blobRes.arrayBuffer();
 
-    return new Response(body, {
+    return new Response(data, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Content-Length': body.byteLength.toString(),
-        // Cache per 1 ora, rivalidabile fino a 24h
-        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-        'X-Image-Source': 'vercel-blob-private',
+        // 24h browser cache + 7 giorni stale-while-revalidate
+        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'ETag': etag,
+        'X-Image-Source': 'vercel-blob',
       },
     });
 
