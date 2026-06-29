@@ -10,6 +10,14 @@ type SyncState = {
   totalProducts: number;
 } | null;
 
+type ImageSyncState = {
+  currentPage: number;
+  totalPages: number;
+  totalPending: number;
+  succeeded: number;
+  failed: number;
+} | null;
+
 type CategoryItem = {
   id: string;
   label: string;
@@ -19,7 +27,7 @@ type CategoryItem = {
 };
 
 export default function AdminDashboardClient() {
-  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'images' | 'categories'>('products');
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<Product[]>([]);
@@ -28,12 +36,18 @@ export default function AdminDashboardClient() {
   const [pageSize, setPageSize] = useState(25);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Sync Loop State
+  // Product sync state
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncState, setSyncState] = useState<SyncState>(null);
   const isSyncingRef = useRef(false);
 
-  // Categories Admin State
+  // Image sync state
+  const [isImageSyncing, setIsImageSyncing] = useState(false);
+  const [imageSyncState, setImageSyncState] = useState<ImageSyncState>(null);
+  const [imageSyncStats, setImageSyncStats] = useState<{ total_public: number; with_blob: number; pending_blob: number } | null>(null);
+  const isImageSyncingRef = useRef(false);
+
+  // Categories state
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoadingCats, setIsLoadingCats] = useState(false);
   const [isRecategorizing, setIsRecategorizing] = useState(false);
@@ -48,6 +62,7 @@ export default function AdminDashboardClient() {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab');
       if (tab === 'categories') setActiveTab('categories');
+      else if (tab === 'images') setActiveTab('images');
       else setActiveTab('products');
     }
   }, []);
@@ -84,6 +99,18 @@ export default function AdminDashboardClient() {
     }
   };
 
+  const fetchImageSyncStats = async () => {
+    try {
+      const res = await fetch('/api/admin/sync-images');
+      if (res.ok) {
+        const data = await res.json();
+        setImageSyncStats(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetchLocalProducts(1, pageSize);
     const saved = localStorage.getItem('diary_free_sync_state');
@@ -104,10 +131,11 @@ export default function AdminDashboardClient() {
   }, [pageSize]);
 
   useEffect(() => {
-    if (activeTab === 'categories') {
-      fetchCategories();
-    }
+    if (activeTab === 'categories') fetchCategories();
+    if (activeTab === 'images') fetchImageSyncStats();
   }, [activeTab]);
+
+  // ─── Product import ────────────────────────────────────────────────
 
   const updateSyncState = (newState: SyncState) => {
     setSyncState(newState);
@@ -122,7 +150,7 @@ export default function AdminDashboardClient() {
     if (e) e.preventDefault();
     setIsSyncing(true);
     isSyncingRef.current = true;
-    setMessage({ type: 'info', text: 'Importazione avviata...' });
+    setMessage({ type: 'info', text: 'Importazione prodotti avviata...' });
 
     let currentQuery = query;
     let startPage = 1;
@@ -145,15 +173,13 @@ export default function AdminDashboardClient() {
         while (!success && isSyncingRef.current) {
           try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
-
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
             const res = await fetch('/api/admin/auto-import', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ q: currentQuery, page: currentPage, limit: 100 }),
               signal: controller.signal
             });
-            
             clearTimeout(timeoutId);
             if (!res.ok) throw new Error(`Errore Server (Codice: ${res.status})`);
             pageData = await res.json();
@@ -177,20 +203,20 @@ export default function AdminDashboardClient() {
 
         fetchLocalProducts(1, pageSize);
 
+        setMessage({
+          type: 'info',
+          text: `Pagina ${currentPage}/${totalPages} importata — ${pageData.count || 0} prodotti. (Solo dati, le immagini si sincronizzano nel tab 🖼️)`
+        });
+
         if (currentPage >= totalPages) {
-          if (totalPages === 1 && (!pageData.totalCount || pageData.totalCount === 0)) {
-            setMessage({ type: 'info', text: 'Nessun prodotto trovato per questa ricerca su OpenFoodFacts.' });
-          } else {
-            setMessage({ type: 'success', text: `Importazione completata! ${totalPages} pagine analizzate.` });
-          }
+          setMessage({ type: 'success', text: `✅ Import completato! ${totalPages} pagine, ${pageData.totalCount || 0} prodotti totali. Ora puoi sincronizzare le immagini nel tab 🖼️.` });
           updateSyncState(null);
           break;
         }
 
         currentPage++;
         if (isSyncingRef.current) {
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          setMessage({ type: 'info', text: 'Importazione in corso...' });
+          await new Promise(resolve => setTimeout(resolve, 3000));
         }
       }
     } catch (err) {
@@ -211,6 +237,107 @@ export default function AdminDashboardClient() {
     updateSyncState(null);
     setQuery('');
   };
+
+  // ─── Image sync ────────────────────────────────────────────────────
+
+  const startImageSync = async () => {
+    setIsImageSyncing(true);
+    isImageSyncingRef.current = true;
+    setMessage({ type: 'info', text: 'Sincronizzazione immagini avviata...' });
+
+    let currentPage = 1;
+    let totalPages = 1;
+    let totalSucceeded = 0;
+    let totalFailed = 0;
+
+    // Recupera totale pending prima di iniziare
+    try {
+      const statsRes = await fetch('/api/admin/sync-images');
+      if (statsRes.ok) {
+        const stats = await statsRes.json();
+        totalPages = Math.max(1, Math.ceil(stats.pending_blob / 20));
+        setImageSyncState({
+          currentPage: 0,
+          totalPages,
+          totalPending: stats.pending_blob,
+          succeeded: 0,
+          failed: 0,
+        });
+      }
+    } catch { /* usa totalPages=1 */ }
+
+    try {
+      while (isImageSyncingRef.current && currentPage <= totalPages) {
+        let success = false;
+        let data: any = null;
+
+        while (!success && isImageSyncingRef.current) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 1 minuto per pagina
+            const res = await fetch('/api/admin/sync-images', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ page: currentPage, pageSize: 20 }),
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            if (!res.ok) throw new Error(`Errore server (${res.status})`);
+            data = await res.json();
+            success = true;
+          } catch (err: any) {
+            if (!isImageSyncingRef.current) break;
+            setMessage({ type: 'error', text: `Errore pagina ${currentPage}: ${err.message}. Riprovo tra 5s...` });
+            await new Promise(r => setTimeout(r, 5000));
+          }
+        }
+
+        if (!isImageSyncingRef.current || !data) break;
+
+        totalSucceeded += data.succeeded || 0;
+        totalFailed += data.failed || 0;
+        totalPages = data.totalPages || totalPages;
+
+        setImageSyncState({
+          currentPage,
+          totalPages,
+          totalPending: data.totalPending || 0,
+          succeeded: totalSucceeded,
+          failed: totalFailed,
+        });
+
+        setMessage({
+          type: 'info',
+          text: `🖼️ Pagina ${currentPage}/${totalPages} — ✅ ${totalSucceeded} sincronizzate, ❌ ${totalFailed} errori`,
+        });
+
+        if (data.totalPending === 0 || currentPage >= totalPages) {
+          setMessage({ type: 'success', text: `🎉 Sincronizzazione completata! ✅ ${totalSucceeded} immagini caricate su Blob, ❌ ${totalFailed} non disponibili.` });
+          break;
+        }
+
+        currentPage++;
+        if (isImageSyncingRef.current) {
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: `Errore critico: ${(err as Error).message}` });
+    } finally {
+      setIsImageSyncing(false);
+      isImageSyncingRef.current = false;
+      fetchImageSyncStats();
+    }
+  };
+
+  const stopImageSync = () => {
+    isImageSyncingRef.current = false;
+    setIsImageSyncing(false);
+    setMessage({ type: 'info', text: '⏸ Sincronizzazione immagini messa in pausa.' });
+    fetchImageSyncStats();
+  };
+
+  // ─── Categories ────────────────────────────────────────────────────
 
   const handleRunAutoCategorization = async (onlyCustom = false) => {
     setIsRecategorizing(true);
@@ -298,56 +425,68 @@ export default function AdminDashboardClient() {
     }
   };
 
-  const progressPercentage = syncState && syncState.totalPages > 0 
-    ? Math.round((syncState.currentPage / syncState.totalPages) * 100) 
+  // ─── Computed ─────────────────────────────────────────────────────
+
+  const progressPercentage = syncState && syncState.totalPages > 0
+    ? Math.round((syncState.currentPage / syncState.totalPages) * 100)
     : 0;
+
+  const imageProgressPercentage = imageSyncState && imageSyncState.totalPages > 0
+    ? Math.round((imageSyncState.currentPage / imageSyncState.totalPages) * 100)
+    : 0;
+
+  const blobCoveragePercentage = imageSyncStats && imageSyncStats.total_public > 0
+    ? Math.round((imageSyncStats.with_blob / imageSyncStats.total_public) * 100)
+    : 0;
+
+  // ─── Stili condivisi ──────────────────────────────────────────────
+
+  const tabStyle = (tab: string, color: string) => ({
+    padding: '1rem 1.5rem',
+    background: activeTab === tab ? 'var(--surface)' : 'transparent',
+    border: '1px solid var(--border-color)',
+    borderBottom: activeTab === tab ? `3px solid ${color}` : '1px solid var(--border-color)',
+    borderRadius: '0.5rem 0.5rem 0 0',
+    color: activeTab === tab ? color : 'var(--text-secondary)',
+    fontWeight: 700,
+    fontSize: '1.05rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    transition: 'all 0.2s ease',
+  } as React.CSSProperties);
+
+  const progressBarWrap = {
+    width: '100%',
+    height: '12px',
+    background: 'var(--border-color)',
+    borderRadius: '6px',
+    overflow: 'hidden',
+    marginBottom: '1.25rem',
+  } as React.CSSProperties;
 
   return (
     <div>
       {/* Navigation Tabs */}
       <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid var(--border-color)', marginBottom: '2rem' }}>
-        <button
-          onClick={() => setActiveTab('products')}
-          style={{
-            padding: '1rem 1.5rem',
-            background: activeTab === 'products' ? 'var(--surface)' : 'transparent',
-            border: '1px solid var(--border-color)',
-            borderBottom: activeTab === 'products' ? '3px solid #3b82f6' : '1px solid var(--border-color)',
-            borderRadius: '0.5rem 0.5rem 0 0',
-            color: activeTab === 'products' ? '#3b82f6' : 'var(--text-secondary)',
-            fontWeight: 700,
-            fontSize: '1.05rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <span>📦</span> Catalogo Prodotti & OFF
+        <button id="tab-products" onClick={() => setActiveTab('products')} style={tabStyle('products', '#3b82f6')}>
+          <span>📦</span> Catalogo & Import
         </button>
-        <button
-          onClick={() => setActiveTab('categories')}
-          style={{
-            padding: '1rem 1.5rem',
-            background: activeTab === 'categories' ? 'var(--surface)' : 'transparent',
-            border: '1px solid var(--border-color)',
-            borderBottom: activeTab === 'categories' ? '3px solid #10b981' : '1px solid var(--border-color)',
-            borderRadius: '0.5rem 0.5rem 0 0',
-            color: activeTab === 'categories' ? '#10b981' : 'var(--text-secondary)',
-            fontWeight: 700,
-            fontSize: '1.05rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <span>🏷️</span> Gestione Categorie
+        <button id="tab-images" onClick={() => setActiveTab('images')} style={tabStyle('images', '#f59e0b')}>
+          <span>🖼️</span> Sincronizza Immagini
+          {imageSyncStats && imageSyncStats.pending_blob > 0 && (
+            <span style={{ background: '#f59e0b', color: '#fff', borderRadius: '9999px', fontSize: '0.75rem', padding: '0 6px', fontWeight: 800 }}>
+              {imageSyncStats.pending_blob}
+            </span>
+          )}
+        </button>
+        <button id="tab-categories" onClick={() => setActiveTab('categories')} style={tabStyle('categories', '#10b981')}>
+          <span>🏷️</span> Categorie
         </button>
       </div>
 
+      {/* Message banner */}
       {message && (
         <div style={{
           padding: '1rem 1.25rem',
@@ -359,42 +498,46 @@ export default function AdminDashboardClient() {
           fontWeight: 600,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
         }}>
           <span>{message.text}</span>
           <button onClick={() => setMessage(null)} style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.25rem' }}>×</button>
         </div>
       )}
 
-      {/* TAB 1: PRODOTTI */}
+      {/* ── TAB 1: PRODOTTI ─────────────────────────────────────────── */}
       {activeTab === 'products' && (
         <div>
           <div style={{ marginBottom: '2rem', padding: '1.5rem', background: 'var(--surface)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
-            <h2 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1.25rem' }}>Sincronizzazione OpenFoodFacts</h2>
+            <h2 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '1.25rem' }}>Importazione Prodotti da OpenFoodFacts</h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-              Cerca una parola chiave per scaricare nuovi prodotti. Il processo analizzerà tutte le pagine disponibili in automatico.
+              Importa solo i dati testuali (nome, categoria, nutrizione, ecc.). Le immagini vengono sincronizzate separatamente nel tab <strong>🖼️ Sincronizza Immagini</strong>.
             </p>
 
             {syncState ? (
               <div style={{ padding: '1.25rem', background: 'var(--bg)', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontWeight: 600 }}>
-                  <span>Importazione: {syncState.query ? `"${syncState.query}"` : "Generale"}</span>
-                  <span>{progressPercentage}% (Pagina {syncState.currentPage} di {syncState.totalPages})</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontWeight: 600 }}>
+                  <span>Query: {syncState.query ? `"${syncState.query}"` : 'Generale'}</span>
+                  <span>{progressPercentage}% — Pagina {syncState.currentPage} / {syncState.totalPages}</span>
                 </div>
-                
-                <div style={{ width: '100%', height: '10px', background: 'var(--border-color)', borderRadius: '5px', overflow: 'hidden', marginBottom: '1.25rem' }}>
-                  <div style={{ width: `${progressPercentage}%`, height: '100%', background: '#3b82f6', transition: 'width 0.3s ease' }}></div>
+
+                <div style={progressBarWrap}>
+                  <div style={{ width: `${progressPercentage}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6, #6366f1)', transition: 'width 0.4s ease', borderRadius: '6px' }} />
                 </div>
+
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                  {syncState.totalProducts > 0 ? `${syncState.totalProducts.toLocaleString()} prodotti totali` : ''}
+                </p>
 
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                   {isSyncing ? (
                     <button onClick={stopSync} className="btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
-                      ⏸ Pausa Importazione
+                      ⏸ Pausa
                     </button>
                   ) : (
                     <>
                       <button onClick={() => startOrResumeSync(undefined, true)} className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981' }}>
-                        ▶ Riprendi da Pagina {syncState.currentPage + 1}
+                        ▶ Riprendi da pagina {syncState.currentPage + 1}
                       </button>
                       <button onClick={clearSync} style={{ padding: '0.6rem 1.25rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 600 }}>
                         Annulla
@@ -406,36 +549,29 @@ export default function AdminDashboardClient() {
             ) : (
               <form onSubmit={(e) => startOrResumeSync(e, false)} style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 <input
+                  id="off-search-query"
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="es. 'soia' (lascia vuoto per importare gli ultimi prodotti generali)"
+                  placeholder="es. 'soia' (lascia vuoto per importare i prodotti generali)"
                   disabled={isSyncing}
-                  style={{
-                    flex: '1 1 300px',
-                    padding: '0.75rem 1rem',
-                    borderRadius: '0.5rem',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg)',
-                    color: 'var(--text-primary)',
-                    fontSize: '1rem'
-                  }}
+                  style={{ flex: '1 1 300px', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--bg)', color: 'var(--text-primary)', fontSize: '1rem' }}
                 />
-                <button type="submit" disabled={isSyncing} className="btn-primary" style={{ padding: '0.75rem 2rem' }}>
-                  {isSyncing ? 'Avvio...' : '🔍 Cerca e Avvia'}
+                <button id="btn-start-import" type="submit" disabled={isSyncing} className="btn-primary" style={{ padding: '0.75rem 2rem' }}>
+                  {isSyncing ? '⏳ In corso...' : '🔍 Cerca e Avvia'}
                 </button>
               </form>
             )}
           </div>
 
-          {!isSyncing && isLoading && <div style={{ textAlign: 'center', padding: '3rem' }}>⏳ Caricamento prodotti locali...</div>}
+          {!isSyncing && isLoading && <div style={{ textAlign: 'center', padding: '3rem' }}>⏳ Caricamento prodotti...</div>}
 
           {!isLoading && results.length > 0 && (
             <div style={{ overflowX: 'auto', background: 'var(--surface)', borderRadius: '0.75rem', border: '1px solid var(--border-color)', padding: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Prodotti nel Catalogo DB ({totalCount})</h2>
-                <select 
-                  value={pageSize} 
+                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Prodotti nel Catalogo ({totalCount.toLocaleString()})</h2>
+                <select
+                  value={pageSize}
                   onChange={(e) => setPageSize(parseInt(e.target.value))}
                   style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--bg)', color: 'var(--text-primary)' }}
                 >
@@ -459,8 +595,8 @@ export default function AdminDashboardClient() {
                   {results.map(p => (
                     <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '0.75rem' }}>
-                        {(p.enrichment?.imageThumbnailUrl || p.enrichment?.imageUrl) ? (
-                          <img src={p.enrichment.imageThumbnailUrl || p.enrichment.imageUrl} alt="" style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px' }} />
+                        {(p.enrichment?.imageUrl) ? (
+                          <img src={p.enrichment.imageUrl} alt="" style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px' }} />
                         ) : (
                           <div style={{ width: '42px', height: '42px', background: 'var(--bg)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
                             {p.emoji || '🛒'}
@@ -484,19 +620,13 @@ export default function AdminDashboardClient() {
 
               {totalCount > pageSize && (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '2rem', gap: '1rem' }}>
-                  <button
-                    onClick={() => fetchLocalProducts(page - 1, pageSize)}
-                    disabled={isLoading || page === 1}
-                    style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--bg)', color: 'var(--text-primary)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
-                  >
+                  <button onClick={() => fetchLocalProducts(page - 1, pageSize)} disabled={isLoading || page === 1}
+                    style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--bg)', color: 'var(--text-primary)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>
                     ← Precedente
                   </button>
                   <span style={{ fontWeight: 700 }}>Pagina {page} di {Math.ceil(totalCount / pageSize) || 1}</span>
-                  <button
-                    onClick={() => fetchLocalProducts(page + 1, pageSize)}
-                    disabled={isLoading || page >= Math.ceil(totalCount / pageSize)}
-                    style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--bg)', color: 'var(--text-primary)', cursor: page >= Math.ceil(totalCount / pageSize) ? 'not-allowed' : 'pointer', opacity: page >= Math.ceil(totalCount / pageSize) ? 0.5 : 1 }}
-                  >
+                  <button onClick={() => fetchLocalProducts(page + 1, pageSize)} disabled={isLoading || page >= Math.ceil(totalCount / pageSize)}
+                    style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--bg)', color: 'var(--text-primary)', cursor: page >= Math.ceil(totalCount / pageSize) ? 'not-allowed' : 'pointer', opacity: page >= Math.ceil(totalCount / pageSize) ? 0.5 : 1 }}>
                     Successiva →
                   </button>
                 </div>
@@ -506,11 +636,134 @@ export default function AdminDashboardClient() {
         </div>
       )}
 
-      {/* TAB 2: CATEGORIE */}
+      {/* ── TAB 2: IMMAGINI ─────────────────────────────────────────── */}
+      {activeTab === 'images' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+          {/* Statistiche Blob */}
+          {imageSyncStats && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem' }}>
+              {[
+                { label: 'Prodotti pubblici', value: imageSyncStats.total_public.toLocaleString(), icon: '📦', color: '#3b82f6' },
+                { label: 'Con immagine Blob', value: imageSyncStats.with_blob.toLocaleString(), icon: '✅', color: '#10b981' },
+                { label: 'Da sincronizzare', value: imageSyncStats.pending_blob.toLocaleString(), icon: '⏳', color: imageSyncStats.pending_blob > 0 ? '#f59e0b' : '#10b981' },
+              ].map(stat => (
+                <div key={stat.label} style={{ padding: '1.25rem 1.5rem', background: 'var(--surface)', borderRadius: '0.75rem', border: `1px solid ${stat.color}33` }}>
+                  <div style={{ fontSize: '1.75rem', marginBottom: '0.4rem' }}>{stat.icon}</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: stat.color }}>{stat.value}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Copertura Blob */}
+          <div style={{ padding: '1.5rem', background: 'var(--surface)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Copertura immagini su Blob</h3>
+              <span style={{ fontWeight: 700, fontSize: '1.1rem', color: blobCoveragePercentage >= 90 ? '#10b981' : blobCoveragePercentage >= 50 ? '#f59e0b' : '#ef4444' }}>
+                {blobCoveragePercentage}%
+              </span>
+            </div>
+            <div style={progressBarWrap}>
+              <div style={{
+                width: `${blobCoveragePercentage}%`,
+                height: '100%',
+                background: blobCoveragePercentage >= 90
+                  ? 'linear-gradient(90deg, #10b981, #059669)'
+                  : blobCoveragePercentage >= 50
+                    ? 'linear-gradient(90deg, #f59e0b, #d97706)'
+                    : 'linear-gradient(90deg, #ef4444, #dc2626)',
+                transition: 'width 0.4s ease',
+                borderRadius: '6px',
+              }} />
+            </div>
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
+              {imageSyncStats
+                ? `${imageSyncStats.with_blob} di ${imageSyncStats.total_public} prodotti hanno l'immagine caricata su Vercel Blob`
+                : 'Caricamento statistiche...'}
+            </p>
+          </div>
+
+          {/* Controllo sync immagini */}
+          <div style={{ padding: '1.5rem', background: 'var(--surface)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
+            <h2 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '1.25rem' }}>Sincronizzazione Immagini su Vercel Blob</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              Scarica le immagini da OpenFoodFacts e le salva nel tuo Blob Storage privato. Processa <strong>20 prodotti per volta</strong> per evitare timeout.
+              Il processo può essere messo in pausa e ripreso in qualsiasi momento.
+            </p>
+
+            {/* Progress durante sync */}
+            {(isImageSyncing || imageSyncState) && (
+              <div style={{ padding: '1.25rem', background: 'var(--bg)', borderRadius: '0.5rem', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontWeight: 600 }}>
+                  <span>
+                    {isImageSyncing ? '⚡ Sincronizzazione in corso...' : '⏸ In pausa'}
+                  </span>
+                  <span>
+                    {imageProgressPercentage}% — Pagina {imageSyncState?.currentPage ?? 0} / {imageSyncState?.totalPages ?? '?'}
+                  </span>
+                </div>
+
+                <div style={progressBarWrap}>
+                  <div style={{
+                    width: `${imageProgressPercentage}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #f59e0b, #10b981)',
+                    transition: 'width 0.4s ease',
+                    borderRadius: '6px',
+                    animation: isImageSyncing ? 'pulse 2s ease-in-out infinite' : 'none',
+                  }} />
+                </div>
+
+                <div style={{ display: 'flex', gap: '2rem', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                  <span>✅ Sincronizzate: <strong style={{ color: '#10b981' }}>{imageSyncState?.succeeded ?? 0}</strong></span>
+                  <span>❌ Errori: <strong style={{ color: '#ef4444' }}>{imageSyncState?.failed ?? 0}</strong></span>
+                  <span>⏳ Rimanenti: <strong style={{ color: '#f59e0b' }}>{imageSyncState?.totalPending ?? '?'}</strong></span>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              {isImageSyncing ? (
+                <button id="btn-stop-image-sync" onClick={stopImageSync} className="btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
+                  ⏸ Pausa Sincronizzazione
+                </button>
+              ) : (
+                <>
+                  <button
+                    id="btn-start-image-sync"
+                    onClick={startImageSync}
+                    disabled={imageSyncStats?.pending_blob === 0}
+                    className="btn-primary"
+                    style={{
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      borderColor: '#f59e0b',
+                      opacity: imageSyncStats?.pending_blob === 0 ? 0.5 : 1,
+                    }}
+                  >
+                    {imageSyncStats?.pending_blob === 0
+                      ? '✅ Tutte le immagini sono già sincronizzate'
+                      : `🖼️ Avvia Sincronizzazione (${imageSyncStats?.pending_blob ?? '...'} da processare)`}
+                  </button>
+                  <button
+                    onClick={fetchImageSyncStats}
+                    style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    🔄 Aggiorna statistiche
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 3: CATEGORIE ────────────────────────────────────────── */}
       {activeTab === 'categories' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          
-          {/* Box Azione Categorizzazione Batch */}
+
+          {/* Box Categorizzazione Batch */}
           <div style={{
             padding: '1.75rem',
             background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(16, 185, 129, 0.15))',
@@ -518,140 +771,78 @@ export default function AdminDashboardClient() {
             border: '1px solid rgba(99, 102, 241, 0.3)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1rem'
+            gap: '1rem',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span style={{ fontSize: '2rem' }}>⚡</span>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--text-primary)' }}>Categorizzazione Automatica Batch</h3>
                 <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                  Esegui l&apos;algoritmo intelligente su tutti i prodotti nel database. Verranno ricreati i tag e le emoji corrette riparando eventuali prodotti finiti su &quot;Personalizzato&quot;.
+                  Esegui l&apos;algoritmo intelligente su tutti i prodotti nel database.
                 </p>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-              <button
-                onClick={() => handleRunAutoCategorization(true)}
-                disabled={isRecategorizing}
-                className="btn-primary"
-                style={{
-                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                  border: 'none',
-                  padding: '0.85rem 1.5rem',
-                  fontSize: '0.95rem',
-                  fontWeight: 700,
-                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)',
-                  flex: '1 1 auto'
-                }}
-              >
-                {isRecategorizing ? '⏳ Elaborazione...' : '🎯 Categorizza Solo Prodotti in "Personalizzato"'}
+              <button onClick={() => handleRunAutoCategorization(true)} disabled={isRecategorizing} className="btn-primary"
+                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', border: 'none', padding: '0.85rem 1.5rem', fontSize: '0.95rem', fontWeight: 700, boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)', flex: '1 1 auto' }}>
+                {isRecategorizing ? '⏳ Elaborazione...' : '🎯 Categorizza Solo "Personalizzato"'}
               </button>
-
-              <button
-                onClick={() => handleRunAutoCategorization(false)}
-                disabled={isRecategorizing}
-                className="btn-primary"
-                style={{
-                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                  border: 'none',
-                  padding: '0.85rem 1.5rem',
-                  fontSize: '0.95rem',
-                  fontWeight: 700,
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
-                  flex: '1 1 auto'
-                }}
-              >
+              <button onClick={() => handleRunAutoCategorization(false)} disabled={isRecategorizing} className="btn-primary"
+                style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', border: 'none', padding: '0.85rem 1.5rem', fontSize: '0.95rem', fontWeight: 700, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)', flex: '1 1 auto' }}>
                 {isRecategorizing ? '⏳ Elaborazione...' : '🔄 Categorizza Tutto il Database'}
               </button>
             </div>
           </div>
 
-          {/* Sezione Categorie */}
+          {/* Elenco Categorie */}
           <div style={{ background: 'var(--surface)', borderRadius: '1rem', border: '1px solid var(--border-color)', padding: '1.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.35rem' }}>Elenco Categorie DB ({categories.length})</h2>
-                <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Gestisci le etichette, i colori e i chip mostrati nei filtri della pagina principale.</p>
+                <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Gestisci le etichette, i colori e i chip mostrati nei filtri.</p>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 {categories.some(c => c.count === 0 && c.id !== 'personalizzato') && (
-                  <button
-                    onClick={handleCleanEmptyCategories}
-                    style={{ padding: '0.65rem 1.2rem', borderRadius: '0.5rem', border: '1px solid #f59e0b', background: '#f59e0b18', color: '#f59e0b', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.95rem' }}
-                  >
-                    <span>🧹</span> Rimuovi Categorie Vuote (0)
+                  <button onClick={handleCleanEmptyCategories}
+                    style={{ padding: '0.65rem 1.2rem', borderRadius: '0.5rem', border: '1px solid #f59e0b', background: '#f59e0b18', color: '#f59e0b', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.95rem' }}>
+                    🧹 Rimuovi Categorie Vuote
                   </button>
                 )}
-                <button
-                  onClick={handleStartCreate}
-                  className="btn-primary"
-                  style={{ background: '#10b981', borderColor: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                >
-                  <span>➕</span> Nuova Categoria
+                <button onClick={handleStartCreate} className="btn-primary"
+                  style={{ background: '#10b981', borderColor: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  ➕ Nuova Categoria
                 </button>
               </div>
             </div>
 
-            {/* Form Modifica/Creazione Inline */}
             {isCreatingCat && (
               <form onSubmit={handleSaveCategory} style={{
-                padding: '1.5rem',
-                background: 'var(--bg)',
-                borderRadius: '0.75rem',
-                border: '1px solid #10b98155',
-                marginBottom: '2rem',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '1.25rem',
-                alignItems: 'end'
+                padding: '1.5rem', background: 'var(--bg)', borderRadius: '0.75rem', border: '1px solid #10b98155',
+                marginBottom: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', alignItems: 'end',
               }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Nome Categoria</label>
-                  <input
-                    type="text"
-                    required
-                    value={catLabel}
-                    onChange={e => setCatLabel(e.target.value)}
-                    placeholder="es. Dolci Senza Glutine"
-                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-primary)' }}
-                  />
+                  <input type="text" required value={catLabel} onChange={e => setCatLabel(e.target.value)} placeholder="es. Dolci Senza Glutine"
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-primary)' }} />
                 </div>
-
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Emoji Icona</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={4}
-                    value={catEmoji}
-                    onChange={e => setCatEmoji(e.target.value)}
-                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-primary)', textAlign: 'center', fontSize: '1.25rem' }}
-                  />
+                  <input type="text" required maxLength={4} value={catEmoji} onChange={e => setCatEmoji(e.target.value)}
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-primary)', textAlign: 'center', fontSize: '1.25rem' }} />
                 </div>
-
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Colore Badge</label>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <input
-                      type="color"
-                      value={catColor}
-                      onChange={e => setCatColor(e.target.value)}
-                      style={{ width: '45px', height: '42px', padding: 0, border: 'none', borderRadius: '0.5rem', cursor: 'pointer', background: 'transparent' }}
-                    />
-                    <input
-                      type="text"
-                      value={catColor}
-                      onChange={e => setCatColor(e.target.value)}
-                      style={{ width: '100px', padding: '0.65rem 0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
-                    />
+                    <input type="color" value={catColor} onChange={e => setCatColor(e.target.value)}
+                      style={{ width: '45px', height: '42px', padding: 0, border: 'none', borderRadius: '0.5rem', cursor: 'pointer', background: 'transparent' }} />
+                    <input type="text" value={catColor} onChange={e => setCatColor(e.target.value)}
+                      style={{ width: '100px', padding: '0.65rem 0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-primary)', fontFamily: 'monospace' }} />
                   </div>
                 </div>
-
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button type="submit" className="btn-primary" style={{ flex: 1, background: '#10b981', borderColor: '#10b981' }}>
-                    💾 Salva
-                  </button>
-                  <button type="button" onClick={() => setIsCreatingCat(false)} style={{ padding: '0.65rem 1rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>
+                  <button type="submit" className="btn-primary" style={{ flex: 1, background: '#10b981', borderColor: '#10b981' }}>💾 Salva</button>
+                  <button type="button" onClick={() => setIsCreatingCat(false)}
+                    style={{ padding: '0.65rem 1rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>
                     Annulla
                   </button>
                 </div>
@@ -663,31 +854,10 @@ export default function AdminDashboardClient() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
                 {categories.map(c => (
-                  <div key={c.id} style={{
-                    padding: '1.25rem',
-                    background: 'var(--bg)',
-                    borderRadius: '0.75rem',
-                    border: '1px solid var(--border-color)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '1rem',
-                    transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                  }}>
+                  <div key={c.id} style={{ padding: '1.25rem', background: 'var(--bg)', borderRadius: '0.75rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                        <div style={{
-                          width: '46px',
-                          height: '46px',
-                          borderRadius: '12px',
-                          background: `${c.color}25`,
-                          border: `1.5px solid ${c.color}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.5rem',
-                          boxShadow: `0 2px 8px ${c.color}20`
-                        }}>
+                        <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: `${c.color}25`, border: `1.5px solid ${c.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', boxShadow: `0 2px 8px ${c.color}20` }}>
                           {c.emoji}
                         </div>
                         <div>
@@ -695,33 +865,18 @@ export default function AdminDashboardClient() {
                           <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{c.id}</span>
                         </div>
                       </div>
-
-                      <span style={{
-                        background: 'var(--surface)',
-                        padding: '0.2rem 0.65rem',
-                        borderRadius: '1rem',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        color: c.count > 0 ? '#3b82f6' : 'var(--text-secondary)',
-                        border: '1px solid var(--border-color)',
-                        whiteSpace: 'nowrap'
-                      }}>
+                      <span style={{ background: 'var(--surface)', padding: '0.2rem 0.65rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 700, color: c.count > 0 ? '#3b82f6' : 'var(--text-secondary)', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
                         {c.count} prod.
                       </span>
                     </div>
-
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px dashed var(--border-color)', paddingTop: '0.85rem' }}>
-                      <button
-                        onClick={() => handleStartEdit(c)}
-                        style={{ padding: '0.4rem 0.85rem', borderRadius: '0.4rem', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                      >
+                      <button onClick={() => handleStartEdit(c)}
+                        style={{ padding: '0.4rem 0.85rem', borderRadius: '0.4rem', border: '1px solid var(--border-color)', background: 'var(--surface)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
                         ✏️ Modifica
                       </button>
                       {c.id !== 'personalizzato' && (
-                        <button
-                          onClick={() => handleDeleteCategory(c.id, c.label)}
-                          style={{ padding: '0.4rem 0.85rem', borderRadius: '0.4rem', border: '1px solid #ef444444', background: '#ef444412', color: '#ef4444', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                        >
+                        <button onClick={() => handleDeleteCategory(c.id, c.label)}
+                          style={{ padding: '0.4rem 0.85rem', borderRadius: '0.4rem', border: '1px solid #ef444444', background: '#ef444412', color: '#ef4444', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
                           🗑️ Elimina
                         </button>
                       )}
