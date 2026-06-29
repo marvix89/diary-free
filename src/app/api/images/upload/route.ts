@@ -44,9 +44,10 @@ export async function POST(request: Request) {
 
     // 1. Upload sul Blob Storage (privato)
     const blob = await put(pathname, file, {
-      access: 'public', // public per ora — cambiare in 'private' quando disponibile su piano Vercel
+      access: 'public',
       contentType: file.type,
       allowOverwrite: true,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     });
 
     await ensureSchema();

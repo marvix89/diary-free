@@ -42,6 +42,7 @@ export async function POST(request: Request) {
               access: 'public',
               contentType,
               allowOverwrite: true,
+              token: process.env.BLOB_READ_WRITE_TOKEN,
             });
             if (p.enrichment) {
               p.enrichment.imageUrl = blob.url;
