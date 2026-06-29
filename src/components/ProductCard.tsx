@@ -23,6 +23,7 @@ export default function ProductCard({
   const isFav = isFavorite(product.id);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -52,7 +53,7 @@ export default function ProductCard({
     >
       {/* Pannello sinistro: immagine a tutta altezza o icona categoria */}
       <div className="product-card-media">
-        {hasImage ? (
+        {hasImage && !imgError ? (
           <>
             {/* Skeleton shimmer visibile finché l'immagine non è pronta */}
             {!imgLoaded && <div className="product-img-skeleton" aria-hidden="true" />}
@@ -62,6 +63,7 @@ export default function ProductCard({
               fill
               className={`product-thumb${imgLoaded ? ' is-loaded' : ''}`}
               onLoad={() => setImgLoaded(true)}
+              onError={() => { setImgError(true); setImgLoaded(true); }}
               loading="lazy"
             />
           </>
