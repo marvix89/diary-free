@@ -78,9 +78,8 @@ export async function ensureSchema(): Promise<void> {
       created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       
       -- Enrichment columns
-      image_url           TEXT,
-      image_thumbnail_url TEXT,
-      blob_pathname       TEXT,        -- percorso nel Vercel Blob (es. products/id/image.jpg)
+      off_image_url       TEXT,        -- URL originale OpenFoodFacts (solo per sync immagini)
+      blob_pathname       TEXT,        -- percorso nel Vercel Blob privato
       nutriscore          TEXT,
       nova_group          INT,
       ecoscore            TEXT,
@@ -92,9 +91,13 @@ export async function ensureSchema(): Promise<void> {
     )
   `;
 
-  // Add enrichment columns if the table already exists
-  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT`;
-  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS image_thumbnail_url TEXT`;
+  // Rimozione colonne legacy (idempotente grazie a IF EXISTS)
+  await sql`ALTER TABLE products DROP COLUMN IF EXISTS image_url`;
+  await sql`ALTER TABLE products DROP COLUMN IF EXISTS image_thumbnail_url`;
+
+  // Aggiunta colonne correnti se non presenti
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS off_image_url TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS blob_pathname TEXT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nutriscore TEXT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nova_group INT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS ecoscore TEXT`;
@@ -103,7 +106,6 @@ export async function ensureSchema(): Promise<void> {
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nutriments JSONB`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS quantity TEXT`;
-  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS blob_pathname TEXT`;
 
   // Tabella di registro per i file caricati sul Blob Storage
   await sql`

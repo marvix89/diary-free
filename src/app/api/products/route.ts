@@ -21,7 +21,6 @@ export async function GET(request: Request) {
     await ensureSchema();
     const sql = getDb();
 
-    // Per i prodotti pubblici usiamo ILIKE (essendo in chiaro nel DB)
     const queryFilter = q ? `%${q}%` : '%';
     const offset = (page - 1) * limit;
 
@@ -40,8 +39,6 @@ export async function GET(request: Request) {
       `
     ]);
 
-    // I prodotti custom sono cifrati, li carichiamo tutti per l'utente,
-    // li decifriamo e li filtriamo in JS.
     const customRows = await sql`
       SELECT * FROM products WHERE is_custom = true AND user_id = ${session.user.id}
         AND (${category} = '' OR category = ${category})
@@ -60,7 +57,8 @@ export async function GET(request: Request) {
         isLactoseFree: row.is_lactose_free as boolean,
         lactoseLevel: row.lactose_level as Product['lactoseLevel'],
         isCustom: true,
-        enrichment: (row.image_url || row.image_thumbnail_url || row.blob_pathname) ? {
+        // imageUrl solo se il prodotto ha un'immagine sul Blob
+        enrichment: row.blob_pathname ? {
           imageUrl: getProductImageProxyUrl(row.id as string),
         } : undefined,
       };
@@ -79,10 +77,11 @@ export async function GET(request: Request) {
       enrichment: {
         brand: row.brand as string,
         quantity: row.quantity as string,
-        imageUrl: (row.image_url || row.image_thumbnail_url || row.blob_pathname)
+        // imageUrl solo se blob_pathname è presente → immagine già su Blob
+        imageUrl: row.blob_pathname
           ? getProductImageProxyUrl(row.id as string)
           : undefined,
-        imageThumbnailUrl: (row.image_url || row.image_thumbnail_url || row.blob_pathname)
+        imageThumbnailUrl: row.blob_pathname
           ? getProductImageProxyUrl(row.id as string)
           : undefined,
         ingredientsText: row.ingredients_text as string,
@@ -94,7 +93,6 @@ export async function GET(request: Request) {
       }
     }));
 
-    // Alla pagina 1 i custom sono in cima: tronchiamo i pubblici per non superare il limit
     const publicSlice = page === 1
       ? publicProducts.slice(0, Math.max(0, limit - customProducts.length))
       : publicProducts;
@@ -123,8 +121,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { name, description, category, emoji, tags, lactoseLevel, isLactoseFree, enrichment } = body;
-    const imageUrl = enrichment?.imageUrl || null;
+    const { name, description, category, emoji, tags, lactoseLevel, isLactoseFree } = body;
 
     if (!name?.trim() || !description?.trim()) {
       return Response.json({ error: 'Nome e descrizione obbligatori' }, { status: 400 });
@@ -140,14 +137,12 @@ export async function POST(request: Request) {
     await sql`
       INSERT INTO products (
         id, name_enc, description_enc, category, emoji, tags,
-        lactose_level, is_lactose_free, is_custom, user_id,
-        image_url, image_thumbnail_url
+        lactose_level, is_lactose_free, is_custom, user_id
       )
       VALUES (
         ${id}, ${nameEnc}, ${descEnc}, ${category}, ${emoji},
         ${tags ?? []}, ${lactoseLevel ?? 'none'}, ${isLactoseFree ?? true},
-        true, ${session.user.id},
-        ${imageUrl}, ${imageUrl}
+        true, ${session.user.id}
       )
     `;
 
@@ -161,10 +156,8 @@ export async function POST(request: Request) {
       isLactoseFree: isLactoseFree ?? true,
       lactoseLevel: lactoseLevel ?? 'none',
       isCustom: true,
-      enrichment: imageUrl ? {
-        imageUrl,
-        imageThumbnailUrl: imageUrl,
-      } : undefined,
+      // L'immagine viene caricata separatamente tramite POST /api/images/upload
+      enrichment: undefined,
     };
 
     return Response.json(product, { status: 201 });

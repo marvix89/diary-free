@@ -5,21 +5,12 @@ import { put } from '@vercel/blob';
 /**
  * POST /api/admin/sync-images
  *
- * Endpoint dedicato alla sincronizzazione delle immagini prodotto su Vercel Blob.
- * Separato dall'import dati per non bloccare l'importazione in caso di errori Blob.
+ * Sincronizza le immagini prodotto su Vercel Blob (store privato).
+ * Usa off_image_url (URL originale OpenFoodFacts) come sorgente.
+ * Imposta blob_pathname al termine — il proxy usa solo questo campo.
  *
- * Body:
- *   page     (number) — pagina corrente (default 1)
- *   pageSize (number) — prodotti per pagina (default 20)
- *
- * Logica per ogni prodotto:
- *   1. Cerca prodotti senza blob_pathname (immagine non ancora sincronizzata)
- *   2. Scarica l'immagine da image_url (URL OpenFoodFacts)
- *   3. Carica su Vercel Blob (privato)
- *   4. Aggiorna blob_pathname e image_url in Postgres
- *
- * Risposta:
- *   { processed, succeeded, failed, totalPending, page, totalPages }
+ * Body: { page, pageSize }
+ * Risposta: { processed, succeeded, failed, totalPending, page, totalPages }
  */
 export async function POST(request: Request) {
   const session = await auth();
@@ -36,48 +27,44 @@ export async function POST(request: Request) {
     await ensureSchema();
     const sql = getDb();
 
-    // Conta totale prodotti senza immagine Blob
+    // Prodotti con URL OFF ma ancora senza blob_pathname
     const [countRow] = await sql`
       SELECT count(*)::int AS total FROM products
       WHERE is_custom = false
         AND blob_pathname IS NULL
-        AND image_url IS NOT NULL
-        AND image_url ILIKE '%openfoodfacts.org%'
+        AND off_image_url IS NOT NULL
     ` as { total: number }[];
 
     const totalPending = countRow?.total ?? 0;
     const totalPages = Math.max(1, Math.ceil(totalPending / pageSize));
 
-    // Recupera la pagina corrente
     const rows = await sql`
-      SELECT id, image_url, image_thumbnail_url FROM products
+      SELECT id, off_image_url FROM products
       WHERE is_custom = false
         AND blob_pathname IS NULL
-        AND image_url IS NOT NULL
-        AND image_url ILIKE '%openfoodfacts.org%'
+        AND off_image_url IS NOT NULL
       ORDER BY created_at DESC
       LIMIT ${pageSize} OFFSET ${offset}
-    ` as { id: string; image_url: string; image_thumbnail_url: string | null }[];
+    ` as { id: string; off_image_url: string }[];
 
     let succeeded = 0;
     let failed = 0;
 
     for (const row of rows) {
-      const imgUrl = row.image_url || row.image_thumbnail_url;
-      if (!imgUrl) { failed++; continue; }
+      if (!row.off_image_url) { failed++; continue; }
 
       try {
-        // Scarica immagine da OFF
+        // Scarica immagine da OpenFoodFacts
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
-        const res = await fetch(imgUrl, {
+        const res = await fetch(row.off_image_url, {
           headers: { 'User-Agent': 'diary-free/1.0 (admin-sync-images)' },
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
 
         if (!res.ok) {
-          console.warn(`sync-images: fetch failed for ${row.id} (${res.status})`);
+          console.warn(`sync-images: fetch failed for product ${row.id} (HTTP ${res.status})`);
           failed++;
           continue;
         }
@@ -86,7 +73,7 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(await res.arrayBuffer());
         const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
 
-        // Carica su Vercel Blob
+        // Carica su Vercel Blob privato
         const blob = await put(`products/${row.id}/image.${ext}`, buffer, {
           access: 'private',
           contentType,
@@ -94,18 +81,16 @@ export async function POST(request: Request) {
           token: process.env.BLOB_READ_WRITE_TOKEN,
         });
 
-        // Aggiorna Postgres
+        // Aggiorna solo blob_pathname — il proxy usa questo campo per costruire l'URL
         await sql`
           UPDATE products
-          SET blob_pathname = ${blob.pathname},
-              image_url = ${blob.url},
-              image_thumbnail_url = ${blob.url}
+          SET blob_pathname = ${blob.pathname}
           WHERE id = ${row.id}
         `;
 
         succeeded++;
       } catch (err) {
-        console.error(`sync-images: error for product ${row.id}:`, err);
+        console.error(`sync-images: errore per prodotto ${row.id}:`, err);
         failed++;
       }
     }
@@ -128,7 +113,7 @@ export async function POST(request: Request) {
 
 /**
  * GET /api/admin/sync-images
- * Restituisce lo stato attuale: quanti prodotti hanno ancora bisogno di sincronizzazione immagini.
+ * Statistiche: quanti prodotti hanno blob_pathname vs quanti ne hanno ancora bisogno.
  */
 export async function GET() {
   const session = await auth();
@@ -144,7 +129,7 @@ export async function GET() {
       SELECT
         count(*) FILTER (WHERE is_custom = false)::int AS total_public,
         count(*) FILTER (WHERE is_custom = false AND blob_pathname IS NOT NULL)::int AS with_blob,
-        count(*) FILTER (WHERE is_custom = false AND blob_pathname IS NULL AND image_url IS NOT NULL AND image_url ILIKE '%openfoodfacts.org%')::int AS pending_blob
+        count(*) FILTER (WHERE is_custom = false AND blob_pathname IS NULL AND off_image_url IS NOT NULL)::int AS pending_blob
       FROM products
     ` as { total_public: number; with_blob: number; pending_blob: number }[];
 

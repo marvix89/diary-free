@@ -26,14 +26,12 @@ export async function POST(request: Request) {
     const sql = getDb();
 
     // Le immagini vengono sincronizzate separatamente tramite /api/admin/sync-images
-    // per non bloccare l'importazione dei dati prodotto in caso di errori Blob
-
-    // Inserimento batch tramite postgres.js
-    // Mappiamo i prodotti per l'insert
-        const rowsToInsert = offResults.products.map(p => ({
+    // per non bloccare l'importazione dei dati prodotto.
+    // off_image_url salva l'URL originale OFF: sarà usato da sync-images per caricare sul Blob.
+    const rowsToInsert = offResults.products.map(p => ({
       id: p.id,
-      name_enc: p.name, // in chiaro per i pubblici
-      description_enc: p.description, // in chiaro per i pubblici
+      name_enc: p.name,
+      description_enc: p.description,
       category: p.category,
       emoji: p.emoji,
       tags: p.tags,
@@ -41,11 +39,7 @@ export async function POST(request: Request) {
       is_lactose_free: p.isLactoseFree,
       is_custom: false,
       user_id: null,
-      
-      // Enrichment
-      image_url: p.enrichment?.imageUrl || null,
-      image_thumbnail_url: p.enrichment?.imageThumbnailUrl || null,
-      blob_pathname: (p as any)._blobPathname || null,
+      off_image_url: p.enrichment?.imageUrl || p.enrichment?.imageThumbnailUrl || null,
       nutriscore: p.enrichment?.nutriScore || null,
       nova_group: p.enrichment?.novaGroup || null,
       ecoscore: p.enrichment?.ecoScore || null,
@@ -72,15 +66,15 @@ export async function POST(request: Request) {
     `);
 
     const productQueries = rowsToInsert.map(r => sql`
-            INSERT INTO products (
+      INSERT INTO products (
         id, name_enc, description_enc, category, emoji, tags,
         lactose_level, is_lactose_free, is_custom, user_id,
-        image_url, image_thumbnail_url, blob_pathname, nutriscore, nova_group,
+        off_image_url, nutriscore, nova_group,
         ecoscore, allergens, ingredients_text, brand, quantity
       ) VALUES (
         ${r.id}, ${r.name_enc}, ${r.description_enc}, ${r.category}, ${r.emoji}, ${r.tags},
         ${r.lactose_level}, ${r.is_lactose_free}, ${r.is_custom}, ${r.user_id},
-        ${r.image_url}, ${r.image_thumbnail_url}, ${r.blob_pathname}, ${r.nutriscore}, ${r.nova_group},
+        ${r.off_image_url}, ${r.nutriscore}, ${r.nova_group},
         ${r.ecoscore}, ${r.allergens}, ${r.ingredients_text}, ${r.brand}, ${r.quantity}
       )
       ON CONFLICT (id) DO UPDATE SET
@@ -91,9 +85,8 @@ export async function POST(request: Request) {
         tags = EXCLUDED.tags,
         lactose_level = EXCLUDED.lactose_level,
         is_lactose_free = EXCLUDED.is_lactose_free,
-        image_url = COALESCE(EXCLUDED.image_url, products.image_url),
-        image_thumbnail_url = COALESCE(EXCLUDED.image_thumbnail_url, products.image_thumbnail_url),
-        blob_pathname = COALESCE(EXCLUDED.blob_pathname, products.blob_pathname),
+        off_image_url = COALESCE(EXCLUDED.off_image_url, products.off_image_url),
+        blob_pathname = COALESCE(products.blob_pathname, NULL),
         nutriscore = EXCLUDED.nutriscore,
         nova_group = EXCLUDED.nova_group,
         ecoscore = EXCLUDED.ecoscore,
@@ -105,9 +98,9 @@ export async function POST(request: Request) {
 
     await sql.transaction([...categoryQueries, ...productQueries]);
 
-    return Response.json({ 
-      success: true, 
-      count: offResults.products.length, 
+    return Response.json({
+      success: true,
+      count: offResults.products.length,
       products: offResults.products,
       pageCount: offResults.pageCount,
       totalCount: offResults.count,

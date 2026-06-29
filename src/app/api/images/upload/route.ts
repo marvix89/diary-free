@@ -76,12 +76,10 @@ export async function POST(request: Request) {
       ON CONFLICT DO NOTHING
     `;
 
-    // 2b. Aggiorna blob_pathname + image_url in products
+    // 2b. Aggiorna solo blob_pathname in products (l'unica colonna usata dal proxy)
     await sql`
       UPDATE products
-      SET blob_pathname = ${blob.pathname},
-          image_url = ${blob.url},
-          image_thumbnail_url = ${blob.url}
+      SET blob_pathname = ${blob.pathname}
       WHERE id = ${productId}
     `;
 

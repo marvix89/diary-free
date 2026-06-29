@@ -4,14 +4,15 @@ import { getDb } from '@/lib/db';
 /**
  * GET /api/images/[id]
  *
- * Proxy sicuro per servire immagini prodotto.
- * Il frontend usa questo endpoint come src dell'<img>, non l'URL diretto del Blob.
+ * Proxy sicuro per servire immagini prodotto direttamente dal Vercel Blob privato.
+ * Usa blob_pathname + BLOB_READ_WRITE_TOKEN per autenticarsi al Blob Storage.
  *
  * Flusso:
- *   1. Autentica la richiesta (solo utenti loggati)
- *   2. Recupera blob_pathname + image_url da Postgres
- *   3. Scarica il file dal Blob Storage via fetch
- *   4. Streamma il binario al client con gli header corretti
+ *   1. Verifica autenticazione utente
+ *   2. Legge blob_pathname da Postgres
+ *   3. Costruisce l'URL Blob usando BLOB_STORE_ID + blob_pathname
+ *   4. Scarica il file dal Blob con token di autenticazione
+ *   5. Streamma il binario al client con header di caching
  */
 export async function GET(
   _request: Request,
@@ -26,36 +27,41 @@ export async function GET(
     const { id } = await params;
     const sql = getDb();
 
-    // Recupera metadati immagine dal DB
+    // Legge solo blob_pathname — unica fonte di verità per le immagini
     const [row] = await sql`
-      SELECT image_url, blob_pathname, image_thumbnail_url
-      FROM products
-      WHERE id = ${id}
-    ` as Record<string, string | null>[];
+      SELECT blob_pathname FROM products WHERE id = ${id}
+    ` as { blob_pathname: string | null }[];
 
     if (!row) {
       return new Response('Prodotto non trovato', { status: 404 });
     }
 
-    // Usa image_url (URL Blob diretto) o image_thumbnail_url come fallback
-    const blobUrl = row.image_url || row.image_thumbnail_url;
-
-    if (!blobUrl) {
+    if (!row.blob_pathname) {
       return new Response('Nessuna immagine disponibile', { status: 404 });
     }
 
-    // Scarica il file dal Blob Storage
-    // I blob privati richiedono il token di autenticazione come header Authorization
-    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    // Costruisce l'URL del Blob privato:
+    // BLOB_STORE_ID = "store_7okYZKYqUlBbsKlg" → storeId = "7okYZKYqUlBbsKlg"
+    // URL = https://<storeId>.blob.vercel-storage.com/<blob_pathname>
+    const storeId = (process.env.BLOB_STORE_ID ?? '').replace('store_', '');
+    if (!storeId) {
+      console.error('BLOB_STORE_ID non configurato');
+      return new Response('Configurazione Blob mancante', { status: 500 });
+    }
+
+    const blobUrl = `https://${storeId}.blob.vercel-storage.com/${row.blob_pathname}`;
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+
+    // Scarica il file dal Blob con autenticazione token
     const blobRes = await fetch(blobUrl, {
       headers: {
+        'Authorization': `Bearer ${token}`,
         'User-Agent': 'diary-free/1.0 (image-proxy)',
-        ...(blobToken ? { 'Authorization': `Bearer ${blobToken}` } : {}),
       },
     });
 
     if (!blobRes.ok) {
-      console.error(`Image proxy: Blob fetch failed for product ${id}, status ${blobRes.status}`);
+      console.error(`Image proxy: Blob fetch failed for product ${id} (${blobRes.status}) — pathname: ${row.blob_pathname}`);
       return new Response('Immagine non disponibile', { status: 502 });
     }
 
@@ -67,9 +73,9 @@ export async function GET(
       headers: {
         'Content-Type': contentType,
         'Content-Length': body.byteLength.toString(),
-        // Cache pubblica per 1 ora, rivalidabile
+        // Cache per 1 ora, rivalidabile fino a 24h
         'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-        'X-Image-Source': 'blob-proxy',
+        'X-Image-Source': 'vercel-blob-private',
       },
     });
 

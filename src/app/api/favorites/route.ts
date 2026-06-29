@@ -4,7 +4,6 @@ import { ensureSchema, getDb } from '@/lib/db';
 import type { Product } from '@/types';
 import { getProductImageProxyUrl } from '@/lib/image-utils';
 
-
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -36,7 +35,7 @@ export async function GET() {
           isLactoseFree: row.is_lactose_free as boolean,
           lactoseLevel: row.lactose_level as Product['lactoseLevel'],
           isCustom: true,
-          enrichment: (row.image_url || row.image_thumbnail_url || row.blob_pathname) ? {
+          enrichment: row.blob_pathname ? {
             imageUrl: getProductImageProxyUrl(row.id as string),
             imageThumbnailUrl: getProductImageProxyUrl(row.id as string),
           } : undefined,
@@ -55,10 +54,10 @@ export async function GET() {
           enrichment: {
             brand: row.brand as string,
             quantity: row.quantity as string,
-            imageUrl: (row.image_url || row.image_thumbnail_url || row.blob_pathname)
+            imageUrl: row.blob_pathname
               ? getProductImageProxyUrl(row.id as string)
               : undefined,
-            imageThumbnailUrl: (row.image_url || row.image_thumbnail_url || row.blob_pathname)
+            imageThumbnailUrl: row.blob_pathname
               ? getProductImageProxyUrl(row.id as string)
               : undefined,
             ingredientsText: row.ingredients_text as string,
@@ -78,4 +77,3 @@ export async function GET() {
     return Response.json({ error: 'Errore nel recupero preferiti' }, { status: 500 });
   }
 }
-
