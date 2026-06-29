@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     // 1. Upload sul Blob Storage (privato)
     const blob = await put(pathname, file, {
-      access: 'public',
+      access: 'private',
       contentType: file.type,
       allowOverwrite: true,
       token: process.env.BLOB_READ_WRITE_TOKEN,

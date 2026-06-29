@@ -45,11 +45,12 @@ export async function GET(
     }
 
     // Scarica il file dal Blob Storage
+    // I blob privati richiedono il token di autenticazione come header Authorization
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
     const blobRes = await fetch(blobUrl, {
       headers: {
-        // Necessario se il blob è private e richiede token di accesso
-        // Authorization viene gestito automaticamente da @vercel/blob via token
         'User-Agent': 'diary-free/1.0 (image-proxy)',
+        ...(blobToken ? { 'Authorization': `Bearer ${blobToken}` } : {}),
       },
     });
 

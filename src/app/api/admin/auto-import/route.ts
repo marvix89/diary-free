@@ -39,7 +39,7 @@ export async function POST(request: Request) {
             const buffer = Buffer.from(await res.arrayBuffer());
             const ext = contentType.includes('png') ? 'png' : 'jpg';
             const blob = await put(`products/${p.id}/image.${ext}`, buffer, {
-              access: 'public',
+              access: 'private',
               contentType,
               allowOverwrite: true,
               token: process.env.BLOB_READ_WRITE_TOKEN,
