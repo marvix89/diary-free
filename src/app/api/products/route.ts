@@ -3,7 +3,7 @@ import { encrypt, safeDecrypt } from '@/lib/crypto';
 import { ensureSchema, getDb } from '@/lib/db';
 import type { Product } from '@/types';
 import { OpenFoodFactsProvider } from '@/lib/product-enrichment/providers/open-food-facts';
-import { getValidImageUrl } from '@/lib/image-utils';
+import { getProductImageProxyUrl } from '@/lib/image-utils';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -60,8 +60,8 @@ export async function GET(request: Request) {
         isLactoseFree: row.is_lactose_free as boolean,
         lactoseLevel: row.lactose_level as Product['lactoseLevel'],
         isCustom: true,
-        enrichment: (row.image_url || row.image_thumbnail_url) ? {
-          imageUrl: getValidImageUrl((row.image_url || row.image_thumbnail_url) as string) ?? undefined,
+        enrichment: (row.image_url || row.image_thumbnail_url || row.blob_pathname) ? {
+          imageUrl: getProductImageProxyUrl(row.id as string),
         } : undefined,
       };
     }).filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.description.toLowerCase().includes(q.toLowerCase()));
@@ -79,7 +79,12 @@ export async function GET(request: Request) {
       enrichment: {
         brand: row.brand as string,
         quantity: row.quantity as string,
-        imageUrl: getValidImageUrl((row.image_url || row.image_thumbnail_url) as string) ?? undefined,
+        imageUrl: (row.image_url || row.image_thumbnail_url || row.blob_pathname)
+          ? getProductImageProxyUrl(row.id as string)
+          : undefined,
+        imageThumbnailUrl: (row.image_url || row.image_thumbnail_url || row.blob_pathname)
+          ? getProductImageProxyUrl(row.id as string)
+          : undefined,
         ingredientsText: row.ingredients_text as string,
         nutriScore: row.nutriscore as any,
         novaGroup: row.nova_group as 1 | 2 | 3 | 4 | undefined,

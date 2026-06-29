@@ -80,6 +80,7 @@ export async function ensureSchema(): Promise<void> {
       -- Enrichment columns
       image_url           TEXT,
       image_thumbnail_url TEXT,
+      blob_pathname       TEXT,        -- percorso nel Vercel Blob (es. products/id/image.jpg)
       nutriscore          TEXT,
       nova_group          INT,
       ecoscore            TEXT,
@@ -102,6 +103,18 @@ export async function ensureSchema(): Promise<void> {
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nutriments JSONB`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS quantity TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS blob_pathname TEXT`;
+
+  // Tabella di registro per i file caricati sul Blob Storage
+  await sql`
+    CREATE TABLE IF NOT EXISTS product_images (
+      id           TEXT        PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+      product_id   TEXT        NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      blob_pathname TEXT       NOT NULL,
+      content_type TEXT        NOT NULL DEFAULT 'image/jpeg',
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
 
   await sql`
     CREATE TABLE IF NOT EXISTS favorites (

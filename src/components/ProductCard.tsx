@@ -6,7 +6,6 @@ import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
-import { getValidImageUrl } from '@/lib/image-utils';
 import ProductDialog from './ProductDialog';
 import CategoryIcon from './CategoryIcon';
 
@@ -40,7 +39,8 @@ export default function ProductCard({
   const { data: session } = useSession();
   const isAdmin = !!session?.user?.isAdmin;
 
-  const validImgUrl = getValidImageUrl(product.enrichment?.imageUrl);
+  // imageUrl è già un URL proxy /api/images/{id} — sempre valido se definito
+  const validImgUrl = product.enrichment?.imageUrl || null;
   const hasImage = !!validImgUrl;
 
   return (
