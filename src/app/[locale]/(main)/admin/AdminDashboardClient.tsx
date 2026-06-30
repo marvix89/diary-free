@@ -244,41 +244,91 @@ export default function AdminDashboardClient() {
   // ─── Image sync ────────────────────────────────────────────────────
 
   const startImageSync = async () => {
-    if (isImageSyncing) return;
+    if (isImageSyncingRef.current) return;
     setIsImageSyncing(true);
-    setMessage({ type: 'info', text: `⏳ Sincronizzazione di ${imageChunkSize} immagini in corso...` });
+    isImageSyncingRef.current = true;
+    setMessage({ type: 'info', text: `▶ Avvio sincronizzazione automatica a chunk da ${imageChunkSize}...` });
+
+    let batchCount = 0;
+    let totalSucceeded = imageSyncState?.succeeded ?? 0;
+    let totalFailed = imageSyncState?.failed ?? 0;
+    let currentPending = imageSyncStats?.pending_image ?? 999;
 
     try {
-      const res = await fetch('/api/admin/sync-images', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ page: 1, pageSize: imageChunkSize }),
-      });
-      if (!res.ok) throw new Error(`Errore server (${res.status})`);
-      const data = await res.json();
+      while (isImageSyncingRef.current && currentPending > 0) {
+        batchCount++;
+        setMessage({
+          type: 'info',
+          text: `⏳ Elaborazione chunk #${batchCount} (${imageChunkSize} immagini in corso)... Restano da sincronizzare: ${currentPending}.`,
+        });
 
-      if (data.stats) {
-        setImageSyncStats(data.stats);
+        try {
+          const res = await fetch('/api/admin/sync-images', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ page: 1, pageSize: imageChunkSize }),
+          });
+          if (!res.ok) throw new Error(`Errore server (${res.status})`);
+          const data = await res.json();
+
+          if (data.stats) {
+            setImageSyncStats(data.stats);
+            currentPending = data.stats.pending_image ?? 0;
+          } else {
+            currentPending = data.totalPending ?? 0;
+          }
+
+          totalSucceeded += data.succeeded || 0;
+          totalFailed += data.failed || 0;
+
+          setImageSyncState({
+            currentPage: batchCount,
+            totalPages: batchCount,
+            totalPending: currentPending,
+            succeeded: totalSucceeded,
+            failed: totalFailed,
+          });
+
+          if (currentPending === 0 || data.processed === 0) {
+            setMessage({
+              type: 'success',
+              text: `🎉 Sincronizzazione completata con successo! ✅ ${totalSucceeded} immagini caricate su Cloudinary, ${totalFailed} non disponibili/in coda.`,
+            });
+            break;
+          }
+
+          if (isImageSyncingRef.current) {
+            for (let sec = 15; sec > 0 && isImageSyncingRef.current; sec--) {
+              setMessage({
+                type: 'info',
+                text: `✅ Chunk #${batchCount} completato (+${data.succeeded || 0} sync). Prossimo chunk tra ${sec} secondi... (Restano: ${currentPending})`,
+              });
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          }
+        } catch (err: any) {
+          if (!isImageSyncingRef.current) break;
+          setMessage({
+            type: 'error',
+            text: `⚠️ Errore nel chunk #${batchCount}: ${err.message}. Riprovo tra 15 secondi...`,
+          });
+          for (let sec = 15; sec > 0 && isImageSyncingRef.current; sec--) {
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
       }
-
-      setImageSyncState({
-        currentPage: 1,
-        totalPages: data.totalPages || 1,
-        totalPending: data.totalPending ?? 0,
-        succeeded: (imageSyncState?.succeeded ?? 0) + (data.succeeded || 0),
-        failed: (imageSyncState?.failed ?? 0) + (data.failed || 0),
-      });
-
-      setMessage({
-        type: 'success',
-        text: `✅ Sincronizzazione chunk completata! ${data.succeeded || 0} immagini caricate su Cloudinary, ${data.failed || 0} non disponibili/in coda. Restano da processare: ${data.totalPending ?? 0}.`,
-      });
     } catch (err) {
       setMessage({ type: 'error', text: `Errore critico: ${(err as Error).message}` });
-      fetchImageSyncStats();
     } finally {
       setIsImageSyncing(false);
+      isImageSyncingRef.current = false;
     }
+  };
+
+  const stopImageSync = () => {
+    isImageSyncingRef.current = false;
+    setIsImageSyncing(false);
+    setMessage({ type: 'info', text: '⏸ Sincronizzazione automatica interrotta.' });
   };
 
   // ─── Categories ────────────────────────────────────────────────────
@@ -681,27 +731,43 @@ export default function AdminDashboardClient() {
                 </select>
               </div>
 
-              <button
-                id="btn-start-image-sync"
-                onClick={startImageSync}
-                disabled={isImageSyncing || imageSyncStats?.pending_image === 0}
-                className="btn-primary"
-                style={{
-                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                  borderColor: '#f59e0b',
-                  opacity: (isImageSyncing || imageSyncStats?.pending_image === 0) ? 0.6 : 1,
-                  padding: '0.75rem 1.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}
-              >
-                {isImageSyncing
-                  ? `⏳ Elaborazione di ${imageChunkSize} elementi...`
-                  : imageSyncStats?.pending_image === 0
+              {isImageSyncing ? (
+                <button
+                  id="btn-stop-image-sync"
+                  onClick={stopImageSync}
+                  className="btn-primary"
+                  style={{
+                    background: '#ef4444',
+                    borderColor: '#ef4444',
+                    padding: '0.75rem 1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  ⏸ Ferma Sincronizzazione
+                </button>
+              ) : (
+                <button
+                  id="btn-start-image-sync"
+                  onClick={startImageSync}
+                  disabled={imageSyncStats?.pending_image === 0}
+                  className="btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    borderColor: '#f59e0b',
+                    opacity: imageSyncStats?.pending_image === 0 ? 0.6 : 1,
+                    padding: '0.75rem 1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  {imageSyncStats?.pending_image === 0
                     ? '✅ Tutte le immagini sono già sincronizzate'
-                    : `🖼️ Sincronizza prossimi ${imageChunkSize} prodotti`}
-              </button>
+                    : `▶ Avvia Sincronizzazione Automatica (${imageChunkSize} per volta, pausa 15s)`}
+                </button>
+              )}
             </div>
           </div>
         </div>
