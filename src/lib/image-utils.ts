@@ -1,7 +1,7 @@
 /**
  * Restituisce l'URL proxy sicuro per servire immagini prodotto via backend.
  * Formato: /api/images/<productId>
- * Il backend scarica il file dal Blob Storage e lo streamma al client.
+ * Il backend reindirizza il client alla CDN Cloudinary.
  */
 export function getProductImageProxyUrl(productId: string): string {
   return `/api/images/${productId}`;
@@ -9,7 +9,7 @@ export function getProductImageProxyUrl(productId: string): string {
 
 /**
  * Verifica che un URL immagine sia valido e non provenga da OpenFoodFacts
- * (che non viene più usato direttamente — tutte le immagini passano per il Blob).
+ * (che non viene più usato direttamente — tutte le immagini passano per Cloudinary).
  * Usata come guard per URL legacy già presenti nel DB.
  */
 export function getValidImageUrl(url?: string | null): string | null {

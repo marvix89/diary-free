@@ -79,7 +79,7 @@ export async function ensureSchema(): Promise<void> {
       
       -- Enrichment columns
       off_image_url       TEXT,        -- URL originale OpenFoodFacts (solo per sync immagini)
-      blob_pathname       TEXT,        -- percorso nel Vercel Blob privato
+      cloudinary_public_id TEXT,        -- public_id su Cloudinary (es. diary-free/products/123)
       nutriscore          TEXT,
       nova_group          INT,
       ecoscore            TEXT,
@@ -94,10 +94,11 @@ export async function ensureSchema(): Promise<void> {
   // Rimozione colonne legacy (idempotente grazie a IF EXISTS)
   await sql`ALTER TABLE products DROP COLUMN IF EXISTS image_url`;
   await sql`ALTER TABLE products DROP COLUMN IF EXISTS image_thumbnail_url`;
+  await sql`ALTER TABLE products DROP COLUMN IF EXISTS blob_pathname`;
 
   // Aggiunta colonne correnti se non presenti
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS off_image_url TEXT`;
-  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS blob_pathname TEXT`;
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS cloudinary_public_id TEXT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nutriscore TEXT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS nova_group INT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS ecoscore TEXT`;
@@ -107,16 +108,8 @@ export async function ensureSchema(): Promise<void> {
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT`;
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS quantity TEXT`;
 
-  // Tabella di registro per i file caricati sul Blob Storage
-  await sql`
-    CREATE TABLE IF NOT EXISTS product_images (
-      id           TEXT        PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-      product_id   TEXT        NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-      blob_pathname TEXT       NOT NULL,
-      content_type TEXT        NOT NULL DEFAULT 'image/jpeg',
-      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `;
+  // La tabella product_images era usata da Vercel Blob — rimossa
+  await sql`DROP TABLE IF EXISTS product_images`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS favorites (

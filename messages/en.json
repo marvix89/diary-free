@@ -171,7 +171,7 @@
     "removeFavorite": "Remove from favorites",
     "removeProduct": "Remove product",
     "removeConfirm": "Remove \"{name}\" from the list?",
-    "missingImageAdmin": "⚠️ Missing Blob Image (Populate via Admin)"
+    "missingImageAdmin": "⚠️ Missing Image (Populate via Admin)"
   },
   "ProductDialog": {
     "close": "Close",

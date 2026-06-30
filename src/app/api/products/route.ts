@@ -3,7 +3,7 @@ import { encrypt, safeDecrypt } from '@/lib/crypto';
 import { ensureSchema, getDb } from '@/lib/db';
 import type { Product } from '@/types';
 import { OpenFoodFactsProvider } from '@/lib/product-enrichment/providers/open-food-facts';
-import { getProductImageProxyUrl } from '@/lib/image-utils';
+import { buildCloudinaryUrl } from '@/lib/cloudinary';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -57,9 +57,9 @@ export async function GET(request: Request) {
         isLactoseFree: row.is_lactose_free as boolean,
         lactoseLevel: row.lactose_level as Product['lactoseLevel'],
         isCustom: true,
-        // imageUrl solo se il prodotto ha un'immagine sul Blob
-        enrichment: row.blob_pathname ? {
-          imageUrl: getProductImageProxyUrl(row.id as string),
+        // imageUrl solo se il prodotto ha un'immagine su Cloudinary
+        enrichment: row.cloudinary_public_id ? {
+          imageUrl: buildCloudinaryUrl(row.cloudinary_public_id as string),
         } : undefined,
       };
     }).filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.description.toLowerCase().includes(q.toLowerCase()));
@@ -77,12 +77,12 @@ export async function GET(request: Request) {
       enrichment: {
         brand: row.brand as string,
         quantity: row.quantity as string,
-        // imageUrl solo se blob_pathname è presente → immagine già su Blob
-        imageUrl: row.blob_pathname
-          ? getProductImageProxyUrl(row.id as string)
+        // imageUrl solo se cloudinary_public_id è presente
+        imageUrl: row.cloudinary_public_id
+          ? buildCloudinaryUrl(row.cloudinary_public_id as string)
           : undefined,
-        imageThumbnailUrl: row.blob_pathname
-          ? getProductImageProxyUrl(row.id as string)
+        imageThumbnailUrl: row.cloudinary_public_id
+          ? buildCloudinaryUrl(row.cloudinary_public_id as string)
           : undefined,
         ingredientsText: row.ingredients_text as string,
         nutriScore: row.nutriscore as any,

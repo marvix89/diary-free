@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { safeDecrypt } from '@/lib/crypto';
 import { ensureSchema, getDb } from '@/lib/db';
 import type { Product } from '@/types';
-import { getProductImageProxyUrl } from '@/lib/image-utils';
+import { buildCloudinaryUrl } from '@/lib/cloudinary';
 
 export async function GET() {
   const session = await auth();
@@ -35,9 +35,9 @@ export async function GET() {
           isLactoseFree: row.is_lactose_free as boolean,
           lactoseLevel: row.lactose_level as Product['lactoseLevel'],
           isCustom: true,
-          enrichment: row.blob_pathname ? {
-            imageUrl: getProductImageProxyUrl(row.id as string),
-            imageThumbnailUrl: getProductImageProxyUrl(row.id as string),
+          enrichment: row.cloudinary_public_id ? {
+            imageUrl: buildCloudinaryUrl(row.cloudinary_public_id as string),
+            imageThumbnailUrl: buildCloudinaryUrl(row.cloudinary_public_id as string),
           } : undefined,
         };
       } else {
@@ -54,11 +54,11 @@ export async function GET() {
           enrichment: {
             brand: row.brand as string,
             quantity: row.quantity as string,
-            imageUrl: row.blob_pathname
-              ? getProductImageProxyUrl(row.id as string)
+            imageUrl: row.cloudinary_public_id
+              ? buildCloudinaryUrl(row.cloudinary_public_id as string)
               : undefined,
-            imageThumbnailUrl: row.blob_pathname
-              ? getProductImageProxyUrl(row.id as string)
+            imageThumbnailUrl: row.cloudinary_public_id
+              ? buildCloudinaryUrl(row.cloudinary_public_id as string)
               : undefined,
             ingredientsText: row.ingredients_text as string,
             nutriScore: row.nutriscore as any,

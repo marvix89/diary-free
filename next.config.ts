@@ -7,20 +7,15 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
+      // Cloudinary CDN — fonte principale per le immagini prodotto
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      // OpenFoodFacts — usato solo come sorgente nel sync-images, non in produzione
       {
         protocol: 'https',
         hostname: 'images.openfoodfacts.org',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.public.blob.vercel-storage.com',
-      },
-      // Proxy locale per le immagini in sviluppo (/api/images/[id])
-      {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '3000',
-        pathname: '/api/images/**',
       },
     ],
   },

@@ -97,7 +97,7 @@ export default function ProductCard({
                 gap: '3px',
                 lineHeight: 1
               }} title={t('missingImageAdmin')}>
-                ⚠️ Manca Blob
+                ⚠️ Manca Immagine
               </span>
             )}
           </div>

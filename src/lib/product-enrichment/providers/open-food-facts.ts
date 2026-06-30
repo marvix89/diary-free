@@ -29,15 +29,35 @@ export class OpenFoodFactsProvider implements IProductEnrichmentProvider {
 
       const url = `${this.baseUrl}/product/${barcode}.json?fields=${fields}`;
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const response = await fetch(url, { headers: this.headers, signal: controller.signal });
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new Error(`OpenFoodFacts API error: ${response.status}`);
+      const MAX_RETRIES = 3;
+      let response: Response | null = null;
+      let lastError: Error | null = null;
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        try {
+          response = await fetch(url, { headers: this.headers, signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (response.ok || ![429, 502, 503, 504].includes(response.status)) break;
+
+          const waitMs = Math.pow(2, attempt - 1) * 1500; // 1.5s, 3s, 6s
+          console.warn(`OFF API returned ${response.status} for barcode ${barcode}, retry ${attempt}/${MAX_RETRIES} in ${waitMs}ms`);
+          await new Promise(r => setTimeout(r, waitMs));
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          lastError = fetchErr as Error;
+          if (attempt === MAX_RETRIES) throw lastError;
+          const waitMs = Math.pow(2, attempt - 1) * 1500;
+          console.warn(`OFF API fetch error for barcode ${barcode}, retry ${attempt}/${MAX_RETRIES} in ${waitMs}ms:`, fetchErr);
+          await new Promise(r => setTimeout(r, waitMs));
+        }
+      }
+
+      if (!response || !response.ok) {
+        if (response?.status === 404) return null;
+        throw new Error(`OpenFoodFacts API error: ${response?.status ?? 'no response'}`);
       }
 
       const data = await response.json();

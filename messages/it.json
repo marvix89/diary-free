@@ -171,7 +171,7 @@
     "removeFavorite": "Rimuovi dai preferiti",
     "removeProduct": "Rimuovi prodotto",
     "removeConfirm": "Rimuovere \"{name}\" dalla lista?",
-    "missingImageAdmin": "⚠️ Manca Immagine Blob (Popola da Admin)"
+    "missingImageAdmin": "⚠️ Manca Immagine (Popola da Admin)"
   },
   "ProductDialog": {
     "close": "Chiudi",

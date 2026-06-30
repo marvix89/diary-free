@@ -44,7 +44,8 @@ export default function AdminDashboardClient() {
   // Image sync state
   const [isImageSyncing, setIsImageSyncing] = useState(false);
   const [imageSyncState, setImageSyncState] = useState<ImageSyncState>(null);
-  const [imageSyncStats, setImageSyncStats] = useState<{ total_public: number; with_blob: number; pending_blob: number } | null>(null);
+  const [imageSyncStats, setImageSyncStats] = useState<{ total_public: number; with_image: number; pending_image: number } | null>(null);
+  const [imageChunkSize, setImageChunkSize] = useState(10);
   const isImageSyncingRef = useRef(false);
 
   // Categories state
@@ -132,7 +133,9 @@ export default function AdminDashboardClient() {
 
   useEffect(() => {
     if (activeTab === 'categories') fetchCategories();
-    if (activeTab === 'images') fetchImageSyncStats();
+    if (activeTab === 'images') {
+      fetchImageSyncStats();
+    }
   }, [activeTab]);
 
   // ─── Product import ────────────────────────────────────────────────
@@ -241,100 +244,41 @@ export default function AdminDashboardClient() {
   // ─── Image sync ────────────────────────────────────────────────────
 
   const startImageSync = async () => {
+    if (isImageSyncing) return;
     setIsImageSyncing(true);
-    isImageSyncingRef.current = true;
-    setMessage({ type: 'info', text: 'Sincronizzazione immagini avviata...' });
-
-    let currentPage = 1;
-    let totalPages = 1;
-    let totalSucceeded = 0;
-    let totalFailed = 0;
-
-    // Recupera totale pending prima di iniziare
-    try {
-      const statsRes = await fetch('/api/admin/sync-images');
-      if (statsRes.ok) {
-        const stats = await statsRes.json();
-        totalPages = Math.max(1, Math.ceil(stats.pending_blob / 20));
-        setImageSyncState({
-          currentPage: 0,
-          totalPages,
-          totalPending: stats.pending_blob,
-          succeeded: 0,
-          failed: 0,
-        });
-      }
-    } catch { /* usa totalPages=1 */ }
+    setMessage({ type: 'info', text: `⏳ Sincronizzazione di ${imageChunkSize} immagini in corso...` });
 
     try {
-      while (isImageSyncingRef.current && currentPage <= totalPages) {
-        let success = false;
-        let data: any = null;
+      const res = await fetch('/api/admin/sync-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: 1, pageSize: imageChunkSize }),
+      });
+      if (!res.ok) throw new Error(`Errore server (${res.status})`);
+      const data = await res.json();
 
-        while (!success && isImageSyncingRef.current) {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 1 minuto per pagina
-            const res = await fetch('/api/admin/sync-images', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ page: currentPage, pageSize: 20 }),
-              signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-            if (!res.ok) throw new Error(`Errore server (${res.status})`);
-            data = await res.json();
-            success = true;
-          } catch (err: any) {
-            if (!isImageSyncingRef.current) break;
-            setMessage({ type: 'error', text: `Errore pagina ${currentPage}: ${err.message}. Riprovo tra 5s...` });
-            await new Promise(r => setTimeout(r, 5000));
-          }
-        }
-
-        if (!isImageSyncingRef.current || !data) break;
-
-        totalSucceeded += data.succeeded || 0;
-        totalFailed += data.failed || 0;
-        totalPages = data.totalPages || totalPages;
-
-        setImageSyncState({
-          currentPage,
-          totalPages,
-          totalPending: data.totalPending || 0,
-          succeeded: totalSucceeded,
-          failed: totalFailed,
-        });
-
-        setMessage({
-          type: 'info',
-          text: `🖼️ Pagina ${currentPage}/${totalPages} — ✅ ${totalSucceeded} sincronizzate, ❌ ${totalFailed} errori`,
-        });
-
-        if (data.totalPending === 0 || currentPage >= totalPages) {
-          setMessage({ type: 'success', text: `🎉 Sincronizzazione completata! ✅ ${totalSucceeded} immagini caricate su Blob, ❌ ${totalFailed} non disponibili.` });
-          break;
-        }
-
-        currentPage++;
-        if (isImageSyncingRef.current) {
-          await new Promise(r => setTimeout(r, 2000));
-        }
+      if (data.stats) {
+        setImageSyncStats(data.stats);
       }
+
+      setImageSyncState({
+        currentPage: 1,
+        totalPages: data.totalPages || 1,
+        totalPending: data.totalPending ?? 0,
+        succeeded: (imageSyncState?.succeeded ?? 0) + (data.succeeded || 0),
+        failed: (imageSyncState?.failed ?? 0) + (data.failed || 0),
+      });
+
+      setMessage({
+        type: 'success',
+        text: `✅ Sincronizzazione chunk completata! ${data.succeeded || 0} immagini caricate su Cloudinary, ${data.failed || 0} non disponibili/in coda. Restano da processare: ${data.totalPending ?? 0}.`,
+      });
     } catch (err) {
       setMessage({ type: 'error', text: `Errore critico: ${(err as Error).message}` });
+      fetchImageSyncStats();
     } finally {
       setIsImageSyncing(false);
-      isImageSyncingRef.current = false;
-      fetchImageSyncStats();
     }
-  };
-
-  const stopImageSync = () => {
-    isImageSyncingRef.current = false;
-    setIsImageSyncing(false);
-    setMessage({ type: 'info', text: '⏸ Sincronizzazione immagini messa in pausa.' });
-    fetchImageSyncStats();
   };
 
   // ─── Categories ────────────────────────────────────────────────────
@@ -431,13 +375,11 @@ export default function AdminDashboardClient() {
     ? Math.round((syncState.currentPage / syncState.totalPages) * 100)
     : 0;
 
-  const imageProgressPercentage = imageSyncState && imageSyncState.totalPages > 0
-    ? Math.round((imageSyncState.currentPage / imageSyncState.totalPages) * 100)
+  const imageCoveragePercentage = imageSyncStats && imageSyncStats.total_public > 0
+    ? Math.round((imageSyncStats.with_image / imageSyncStats.total_public) * 100)
     : 0;
 
-  const blobCoveragePercentage = imageSyncStats && imageSyncStats.total_public > 0
-    ? Math.round((imageSyncStats.with_blob / imageSyncStats.total_public) * 100)
-    : 0;
+  const imageProgressPercentage = imageCoveragePercentage;
 
   // ─── Stili condivisi ──────────────────────────────────────────────
 
@@ -475,9 +417,9 @@ export default function AdminDashboardClient() {
         </button>
         <button id="tab-images" onClick={() => setActiveTab('images')} style={tabStyle('images', '#f59e0b')}>
           <span>🖼️</span> Sincronizza Immagini
-          {imageSyncStats && imageSyncStats.pending_blob > 0 && (
+          {imageSyncStats && imageSyncStats.pending_image > 0 && (
             <span style={{ background: '#f59e0b', color: '#fff', borderRadius: '9999px', fontSize: '0.75rem', padding: '0 6px', fontWeight: 800 }}>
-              {imageSyncStats.pending_blob}
+              {imageSyncStats.pending_image}
             </span>
           )}
         </button>
@@ -640,13 +582,13 @@ export default function AdminDashboardClient() {
       {activeTab === 'images' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
-          {/* Statistiche Blob */}
+          {/* Statistiche Immagini */}
           {imageSyncStats && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem' }}>
               {[
                 { label: 'Prodotti pubblici', value: imageSyncStats.total_public.toLocaleString(), icon: '📦', color: '#3b82f6' },
-                { label: 'Con immagine Blob', value: imageSyncStats.with_blob.toLocaleString(), icon: '✅', color: '#10b981' },
-                { label: 'Da sincronizzare', value: imageSyncStats.pending_blob.toLocaleString(), icon: '⏳', color: imageSyncStats.pending_blob > 0 ? '#f59e0b' : '#10b981' },
+                { label: 'Con immagine Cloudinary', value: imageSyncStats.with_image.toLocaleString(), icon: '✅', color: '#10b981' },
+                { label: 'Da sincronizzare', value: imageSyncStats.pending_image.toLocaleString(), icon: '⏳', color: imageSyncStats.pending_image > 0 ? '#f59e0b' : '#10b981' },
               ].map(stat => (
                 <div key={stat.label} style={{ padding: '1.25rem 1.5rem', background: 'var(--surface)', borderRadius: '0.75rem', border: `1px solid ${stat.color}33` }}>
                   <div style={{ fontSize: '1.75rem', marginBottom: '0.4rem' }}>{stat.icon}</div>
@@ -657,21 +599,21 @@ export default function AdminDashboardClient() {
             </div>
           )}
 
-          {/* Copertura Blob */}
+          {/* Copertura Immagini */}
           <div style={{ padding: '1.5rem', background: 'var(--surface)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Copertura immagini su Blob</h3>
-              <span style={{ fontWeight: 700, fontSize: '1.1rem', color: blobCoveragePercentage >= 90 ? '#10b981' : blobCoveragePercentage >= 50 ? '#f59e0b' : '#ef4444' }}>
-                {blobCoveragePercentage}%
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Copertura immagini su Cloudinary</h3>
+              <span style={{ fontWeight: 700, fontSize: '1.1rem', color: imageCoveragePercentage >= 90 ? '#10b981' : imageCoveragePercentage >= 50 ? '#f59e0b' : '#ef4444' }}>
+                {imageCoveragePercentage}%
               </span>
             </div>
             <div style={progressBarWrap}>
               <div style={{
-                width: `${blobCoveragePercentage}%`,
+                width: `${imageCoveragePercentage}%`,
                 height: '100%',
-                background: blobCoveragePercentage >= 90
+                background: imageCoveragePercentage >= 90
                   ? 'linear-gradient(90deg, #10b981, #059669)'
-                  : blobCoveragePercentage >= 50
+                  : imageCoveragePercentage >= 50
                     ? 'linear-gradient(90deg, #f59e0b, #d97706)'
                     : 'linear-gradient(90deg, #ef4444, #dc2626)',
                 transition: 'width 0.4s ease',
@@ -680,17 +622,17 @@ export default function AdminDashboardClient() {
             </div>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0 }}>
               {imageSyncStats
-                ? `${imageSyncStats.with_blob} di ${imageSyncStats.total_public} prodotti hanno l'immagine caricata su Vercel Blob`
+                ? `${imageSyncStats.with_image} di ${imageSyncStats.total_public} prodotti hanno l'immagine caricata su Cloudinary`
                 : 'Caricamento statistiche...'}
             </p>
           </div>
 
           {/* Controllo sync immagini */}
           <div style={{ padding: '1.5rem', background: 'var(--surface)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
-            <h2 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '1.25rem' }}>Sincronizzazione Immagini su Vercel Blob</h2>
+            <h2 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '1.25rem' }}>Sincronizzazione Manuale Immagini su Cloudinary</h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-              Scarica le immagini da OpenFoodFacts e le salva nel tuo Blob Storage privato. Processa <strong>20 prodotti per volta</strong> per evitare timeout.
-              Il processo può essere messo in pausa e ripreso in qualsiasi momento.
+              Avvia la sincronizzazione manualmente a chunk (predefinito <strong>10 prodotti per volta</strong>) per evitare errori 429 (rate limit).
+              I prodotti con immagine già sincronizzata vengono ignorati a monte dalla chiamata.
             </p>
 
             {/* Progress durante sync */}
@@ -698,10 +640,10 @@ export default function AdminDashboardClient() {
               <div style={{ padding: '1.25rem', background: 'var(--bg)', borderRadius: '0.5rem', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontWeight: 600 }}>
                   <span>
-                    {isImageSyncing ? '⚡ Sincronizzazione in corso...' : '⏸ In pausa'}
+                    {isImageSyncing ? `⚡ Sincronizzazione di ${imageChunkSize} immagini in corso...` : 'Sincronizzazione chunk completata'}
                   </span>
                   <span>
-                    {imageProgressPercentage}% — Pagina {imageSyncState?.currentPage ?? 0} / {imageSyncState?.totalPages ?? '?'}
+                    {imageProgressPercentage}% — Completati {imageSyncStats?.with_image ?? 0} su {imageSyncStats?.total_public ?? '?'}
                   </span>
                 </div>
 
@@ -712,48 +654,54 @@ export default function AdminDashboardClient() {
                     background: 'linear-gradient(90deg, #f59e0b, #10b981)',
                     transition: 'width 0.4s ease',
                     borderRadius: '6px',
-                    animation: isImageSyncing ? 'pulse 2s ease-in-out infinite' : 'none',
                   }} />
                 </div>
 
                 <div style={{ display: 'flex', gap: '2rem', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                  <span>✅ Sincronizzate: <strong style={{ color: '#10b981' }}>{imageSyncState?.succeeded ?? 0}</strong></span>
-                  <span>❌ Errori: <strong style={{ color: '#ef4444' }}>{imageSyncState?.failed ?? 0}</strong></span>
-                  <span>⏳ Rimanenti: <strong style={{ color: '#f59e0b' }}>{imageSyncState?.totalPending ?? '?'}</strong></span>
+                  <span>✅ Sincronizzate (sessione): <strong style={{ color: '#10b981' }}>{imageSyncState?.succeeded ?? 0}</strong></span>
+                  <span>❌ Errori/Vuote (sessione): <strong style={{ color: '#ef4444' }}>{imageSyncState?.failed ?? 0}</strong></span>
+                  <span>⏳ Rimanenti totali: <strong style={{ color: '#f59e0b' }}>{imageSyncStats?.pending_image ?? '?'}</strong></span>
                 </div>
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {isImageSyncing ? (
-                <button id="btn-stop-image-sync" onClick={stopImageSync} className="btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }}>
-                  ⏸ Pausa Sincronizzazione
-                </button>
-              ) : (
-                <>
-                  <button
-                    id="btn-start-image-sync"
-                    onClick={startImageSync}
-                    disabled={imageSyncStats?.pending_blob === 0}
-                    className="btn-primary"
-                    style={{
-                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                      borderColor: '#f59e0b',
-                      opacity: imageSyncStats?.pending_blob === 0 ? 0.5 : 1,
-                    }}
-                  >
-                    {imageSyncStats?.pending_blob === 0
-                      ? '✅ Tutte le immagini sono già sincronizzate'
-                      : `🖼️ Avvia Sincronizzazione (${imageSyncStats?.pending_blob ?? '...'} da processare)`}
-                  </button>
-                  <button
-                    onClick={fetchImageSyncStats}
-                    style={{ padding: '0.75rem 1.25rem', background: 'transparent', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    🔄 Aggiorna statistiche
-                  </button>
-                </>
-              )}
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label htmlFor="select-chunk-size" style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Chunk:</label>
+                <select
+                  id="select-chunk-size"
+                  value={imageChunkSize}
+                  onChange={(e) => setImageChunkSize(parseInt(e.target.value, 10))}
+                  disabled={isImageSyncing}
+                  style={{ padding: '0.65rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'var(--bg)', color: 'var(--text-primary)', fontWeight: 600 }}
+                >
+                  <option value={10}>10 elementi</option>
+                  <option value={20}>20 elementi</option>
+                  <option value={50}>50 elementi</option>
+                </select>
+              </div>
+
+              <button
+                id="btn-start-image-sync"
+                onClick={startImageSync}
+                disabled={isImageSyncing || imageSyncStats?.pending_image === 0}
+                className="btn-primary"
+                style={{
+                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                  borderColor: '#f59e0b',
+                  opacity: (isImageSyncing || imageSyncStats?.pending_image === 0) ? 0.6 : 1,
+                  padding: '0.75rem 1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {isImageSyncing
+                  ? `⏳ Elaborazione di ${imageChunkSize} elementi...`
+                  : imageSyncStats?.pending_image === 0
+                    ? '✅ Tutte le immagini sono già sincronizzate'
+                    : `🖼️ Sincronizza prossimi ${imageChunkSize} prodotti`}
+              </button>
             </div>
           </div>
         </div>

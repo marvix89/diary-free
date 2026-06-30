@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
     // Le immagini vengono sincronizzate separatamente tramite /api/admin/sync-images
     // per non bloccare l'importazione dei dati prodotto.
-    // off_image_url salva l'URL originale OFF: sarà usato da sync-images per caricare sul Blob.
+    // off_image_url salva l'URL originale OFF: sarà usato da sync-images per caricare su Cloudinary.
     const rowsToInsert = offResults.products.map(p => ({
       id: p.id,
       name_enc: p.name,
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         lactose_level = EXCLUDED.lactose_level,
         is_lactose_free = EXCLUDED.is_lactose_free,
         off_image_url = COALESCE(EXCLUDED.off_image_url, products.off_image_url),
-        blob_pathname = COALESCE(products.blob_pathname, NULL),
+        cloudinary_public_id = COALESCE(products.cloudinary_public_id, NULL),
         nutriscore = EXCLUDED.nutriscore,
         nova_group = EXCLUDED.nova_group,
         ecoscore = EXCLUDED.ecoscore,
