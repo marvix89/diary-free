@@ -15,7 +15,12 @@ const EMOJI_OPTIONS = [
   '🍎','🍑','🍐','🍒','🥭','🍍','🍅','🥔','🍠','🍞',
 ];
 
-export default function AddProductView() {
+interface AddProductViewProps {
+  onClose?: () => void;
+  isModal?: boolean;
+}
+
+export default function AddProductView({ onClose, isModal = false }: AddProductViewProps = {}) {
   const t = useTranslations('AddProduct');
   const tCat = useTranslations('Categories');
   const { addCustomProduct, categories } = useApp();
@@ -122,7 +127,11 @@ export default function AddProductView() {
 
       setIsSuccess(true);
       setTimeout(() => {
-        router.push('/');
+        if (onClose) {
+          onClose();
+        } else {
+          router.push('/');
+        }
       }, 1500);
     } catch {
       setSubmitError(t('errorDefault'));

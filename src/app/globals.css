@@ -1755,6 +1755,28 @@ a.empty-cta {
   transform: rotate(90deg);
 }
 
+.product-modal-content.add-product-modal {
+  width: 100%;
+  max-width: 640px;
+  padding: 2.25rem 2rem 2rem;
+}
+
+.add-product-modal .add-view {
+  margin: 0;
+  max-width: none;
+}
+
+.add-product-modal .add-hero {
+  padding: 0 0 1.25rem;
+}
+
+.add-product-modal .add-form {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
 .product-modal-header {
   display: flex;
   align-items: flex-start;

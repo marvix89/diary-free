@@ -5,6 +5,7 @@ import { Link, usePathname } from '@/i18n/routing';
 import { signOut, useSession } from 'next-auth/react';
 import { useApp } from '@/context/AppContext';
 import { useState, useRef, useEffect } from 'react';
+import AddProductDialog from './AddProductDialog';
 
 export default function Header() {
   const t = useTranslations('Header');
@@ -28,6 +29,7 @@ export default function Header() {
   } = useApp();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [isCatMenuOpen, setIsCatMenuOpen] = useState(false);
@@ -207,14 +209,15 @@ export default function Header() {
             )}
           </div>
 
-          <Link
-            href="/add"
+          <button
+            type="button"
             id="nav-add"
-            className={`nav-btn ${isActive('/add') ? 'active' : ''}`}
+            onClick={() => setIsAddDialogOpen(true)}
+            className={`nav-btn ${isAddDialogOpen || isActive('/add') ? 'active' : ''}`}
           >
             <span className="nav-icon">➕</span>
             <span className="nav-label">{t('add')}</span>
-          </Link>
+          </button>
 
           {/* Top-level language switcher with real flag images */}
           <div className="lang-switcher">
@@ -298,6 +301,7 @@ export default function Header() {
           )}
         </nav>
       </div>
+      <AddProductDialog isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)} />
     </header>
   );
 }
