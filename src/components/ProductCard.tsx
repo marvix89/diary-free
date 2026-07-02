@@ -61,6 +61,7 @@ export default function ProductCard({
               src={validImgUrl!}
               alt={product.name}
               fill
+              sizes="120px"
               className={`product-thumb${imgLoaded ? ' is-loaded' : ''}`}
               onLoad={() => setImgLoaded(true)}
               onError={() => { setImgError(true); setImgLoaded(true); }}
